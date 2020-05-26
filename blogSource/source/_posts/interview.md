@@ -488,6 +488,127 @@ BeanPostProcessor
 
 
 
+### Spring Boot 源码
+
+#### 简化了多少操作？
+
+```java
+1.MultipartAutoConfiguration
+	帮我们添加了一个bean StandardServletMultipartResolver
+	使得Spring MVC中的 DispatcherServlet 可以获取 multipartResolver, 处理文件上传.
+    若不是Spring Boot, 需要在xml或注解中手动添加一个 这样的bean才能处理文件上传, 而且配置文件还要自己读取.
+
+2.MailSenderAutoConfiguration
+    帮我们添加了一个 JavaMailSenderImpl 的bean到容器中, 用于发送邮件
+    若不是Spring Boot, 需要在xml中配置一个bean即配置他的属性(邮箱配置)
+
+3.TransactionAutoConfiguration
+    
+    
+4.WebMvcAutoConfiguration
+    
+
+```
+
+#### 启动流程
+
+```java
+1) 创建 SpringApplicationRunListeners 管理 run 过程的事件, 监听者取自 spring.factories
+2) 触发 run 的开始(starting)事件
+3) 初始化 environment 对象, 并利用 run 的 environmentPrepared 事件将application.yml的数据注入
+4) 打印 Banner, 可自定义 Banner 通过 banner.txt 文件
+5) 根据webApplicationType创建一个ApplicationContext 容器
+    默认使用 AnnotationConfigApplicationContext
+6) 为 context 做一些初始化和设置
+    设置环境变量， 使得 context 可以获取 application.yml 中的配置
+    调用子类扩展的设置
+    加载 容器的 initializers
+    触发 run 的 contextPrepared 事件
+    打印日志
+    添加spring boot 启动参数信息到 bean 容器中
+    设置beanFactory的 allowBeanDefinitionOverriding 属性
+    设置 懒加载策略， 添加 postProcessor 则会将每个 beanDefinition 的 lazyInit 设置为 true
+    把启动类class封装成 BeanDefinition 放到容器中, 使得@Configuration之类的注解生效
+    触发 run 的 contextLoaded 事件
+7) 调用 context 的 refresh()
+    执行BeanFactoryPostProcessor, 如 ConfigurationClassPostProcessor 解析 @Import 注解
+    @Import 会实现 @EnableAutoConfiguration, 总之都是熟悉的 spring 套路. boot的东西就少了.
+8) 调用留给子类的 afterRefresh() 方法, 默认空实现
+9) 打印启动完毕信息
+10) 触发 run 的 started 事件
+11) 调用 容器内所有的 ApplicationRunner 和 CommandLineRunner 实现类, 类似事件监听.
+12) 使用 spring.factories 中的 exceptionReporters 处理可能出现的异常.
+13) 触发 run 的 running 事件
+```
+
+#### 笔记
+
+```
+
+```
+
+
+
+#### 一些东西的实现原理
+
+````java
+1.@ConfigurationProperties 如何实现自动注入application.properties中配置的值
+
+2.@ConditionalXxx 实现原理
+
+3.各种 AutoConfiguration 实现大致流程.
+    首先是 @SpringBootApplication 启用了 @EnableAutoConfiguration
+    @EnableAutoConfiguration 又使用@Import 导入了 AutoConfigurationImportSelector.class
+    然后 AutoConfigurationImportSelector 导入 spring.factories所有EnableAutoConfiguration
+    最后，一个项目依赖一个starter-xxx，会集成依赖starter的依赖项，尤其是 spring-boot-autoconfigure
+    其中spring boot自带的所有 AutoConfiguration 都在 spring-boot-autoconfigure 项目中
+    所以会加载该项目下 spirng.factories 中定义的 EnableAutoConfiguration
+    每个 AutoConfiguration 实现类被导入到容器中，然后被 ConfigurationClassPostProcessor 解析@Configuration 等注解，添加每个实现类想加的bean，或者再嵌套一层@Import，@Configuration等。
+    这样，容器中就有配置好的bean了。当然还缺了一个步骤，就是自动注入application.yml的配置到bean容器。
+
+4.SpringApplication.run 如何加载 tomcat 的?
+    
+5.application.properties 是如何被加载到Environment中的?
+    run方法中创建了Environment对象, 当初始化好一些东西后会触发事件
+    通过 SpringApplicationRunListeners 的 environmentPrepared() 告知监听者
+    默认存在 spring.factories 中的 EventPublishingRunListener 监听者负责转发事件
+    事件被转发到 ApplicationListener 下的监听者来处理
+    默认存在 spring.factories 中的 ConfigFileApplicationListener 负责加载配置
+    此监听者接受 ApplicationEnvironmentPreparedEvent 事件后
+	加载一些 postProcessor 专门用于处理环境对象的 postProcessor
+    其他的 postProcessor 暂时不管, postProcessors.add(this); 将自己也加入
+    自己的处理方法是: addPropertySources(), 此方法将会扫描指定的路径下指定的某些文件
+    然后使用 spring.factories 下的 PropertySourceLoader 一一尝试解析, 解析成功则加入到 environment 的 propertySources.
+        某些路径: getSearchLocations() ,默认: classpath:/,classpath:/config/ ...
+        某些文件: getSearchNames() ,默认: application
+      	PropertySourceLoader 有 PropertiesPropertySourceLoader/YamlPropertySourceLoader
+            一个尝试后缀有 xml/properties, 另一个是 yml/yaml
+            所有可能性有 classpath:/application.xml; classpath:/application.properties ...
+    
+````
+
+
+
+#### Spring Boot 监听
+
+```java
+Spring Boot run方法中初始化了一个事件管理器, 用于在boot的每个生命周期触发不同的事件, 这些事件可以有很多监听者, 这些监听者都从 spring.factories 中取得.
+但是, spring 默认只加了一个监听者, 即 EventPublishingRunListener
+虽然只有一个, 但他的作用可不小, 他承上启下, 将boot的事件转发给所有的 ApplicationListener 的监听者.
+也就是说, 之前spring就存在的体系可以直接复用, 但又没有直接生搬硬套, 而是通过 EventPublishingRunListener 做一个中转, 将 boot 的事件转发出去. 使得配置的监听者 ApplicationListener 也能接受 boot 事件并处理. 如 ConfigFileApplicationListener.
+    
+spring boot 这么做, 使得 添加到 spring.factories 中的类, 可以同时监听boot的run产生的事件和context的生命周期.
+    
+严格说, EventPublishingRunListener 这样的监听者, 监听的并不是通用的事件, 而是 boot run产生的特定事件
+所以 EventPublishingRunListener 将特定事件封装成统一的 ApplicationEvent, 然后广播出去.
+
+另外，spring boot 是在 EventPublishingRunListener#contextLoaded 中将 spring.factories 中的 listens 注入到 ApplicationContext 中的。
+    
+总结: 我监听你监听的监听!
+```
+
+
+
 
 
 ### Spring MVC 源码
