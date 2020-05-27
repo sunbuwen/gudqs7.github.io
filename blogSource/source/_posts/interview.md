@@ -270,22 +270,22 @@ D: 持续性, 一个事务一但提交, 则对数据库的改变是永久的.
 
 ## 源码和框架
 
-### HashMap
+### `HashMap`
 
-#### 请简述 HashMap 的底层数据结构
+#### 请简述 `HashMap` 的底层数据结构
 
 ```
 1. 使用了数组加链表, 以数组为主, 链表加红黑树为补充的数据结构来存储键值对.
 2. 当键发送冲突(碰撞)时, 数据将串成链表存于数组中, 当链表长度超过指定值(默认 8)时, 链表转成红黑树, 当红黑树长度小于指定值时(默认 6), 则又转成链表
 ```
 
-#### 为什么 HashMap 的初始容量以及扩容后的容量均为 2 的指数幂
+#### 为什么 `HashMap` 的初始容量以及扩容后的容量均为 2 的指数幂
 
 > 因为计算机做运算时, 取模运算速度远远慢于位运算, 而若容量始终为 2 的指数幂, 则根据 hash 获取数组下标时只需要 使用 ` (数组长度-1) & hash 值  ` 即可确定数组下标, 与取模得到的下标一样可靠.
 >
 > 而扩容后后, 因为需要进行 rehash 运算来确定 数据的新下标, 多次进行取数组下标则更能体现位运算的优势.
 
-#### 为什么 HashMap 的加载因子是 0.75 (3/4)
+#### 为什么 `HashMap` 的加载因子是 0.75 (3/4)
 
 ```
 使用排除法:
@@ -296,7 +296,7 @@ D: 持续性, 一个事务一但提交, 则对数据库的改变是永久的.
 0.5-1 之间那么多可能, 选哪个都行, 但作为 HashMap 的默认值, 选中间的 0.75, 走中庸之路, 也是解释的通的.
 ```
 
-#### 为什么 HashMap 1.8 扩容无需 rehash
+#### 为什么 `HashMap` 1.8 扩容无需 rehash
 
 ```
 1. 因为1.8的获取 hash 值的算法优化了. 无需一个 hashSeed 进行辅助运算 (主因)
@@ -308,13 +308,13 @@ D: 持续性, 一个事务一但提交, 则对数据库的改变是永久的.
 4. 1.8 的 resize 优化了算法, 保持了原有的链表顺序(不知道有啥用)
 ```
 
-> 总得来说, 1.8 优化了 hash 算法, 使 hashcode 的高 16 位与 低 16 位进行异或运算, 降低了碰撞率
+> 总得来说, 1.8 优化了 hash 算法, 使 `hashcode` 的高 16 位与 低 16 位进行异或运算, 降低了碰撞率
 >
 > 而 resize 算法也优化链表节点的迁移, 避免了 1.7 的链环产生
 >
-> 最大的区别就是, 1.7 没有将二进制的神奇发挥到极致, 依然像普通 java 程序一般逻辑. 而 1.8 则充分利用了二进制的优点(也充分的让人头晕), 提高了 HashMap 的效率.
+> 最大的区别就是, 1.7 没有将二进制的神奇发挥到极致, 依然像普通 java 程序一般逻辑. 而 1.8 则充分利用了二进制的优点(也充分的让人头晕), 提高了 `HashMap` 的效率.
 
-#### 为什么 HashMap 从链表达到 8 个时转成红黑树, 达到 6 个时转回链表?
+#### 为什么 `HashMap` 从链表达到 8 个时转成红黑树, 达到 6 个时转回链表?
 
 ```
 1.根据 Poisson distribution 定律, 凑齐8个节点碰撞到同一个下标, 组成长度为 8 的链表概率极低, 约为 0.00000006, 而超过 8 个的几率则更低, 大约为千万分之一. 所以将阈值设置为 8, 因为这种概率极低. 因此可以减少链表转红黑树的, 提高增删改效率.
@@ -380,42 +380,59 @@ BeanPostProcessor
 
 #### 某些实现原理
 
+##### 实现 `ApplicationContextAware` 为何会自动注入 `applicationContext`?
+
 ```java
-1.实现 ApplicationContextAware 为何会自动注入 applicationContext?
-	首先 AbstractApplicationContext#prepareBeanFactory 会添加一个ApplicationContextAwareProcessor, 这个beanPostProcessor 负责在bean初始化之前注入context对象.
-    上一步只是加入到beanFactory的属性中存起来, 接下来, 还要在doCreateBean时候取出来, 然后挨个调用即可注入.
+1) 首先 AbstractApplicationContext#prepareBeanFactory 会添加一个ApplicationContextAwareProcessor
+2) 这个 beanPostProcessor 负责在bean初始化之前注入context对象.
+3) 这个 beanPostProcessor 的执行时机是在 doCreateBean 中的 postProcessBeforeInitialization()
+```
 
-2.实现 ApplicationListener 为何会在事件触发时自动执行我们实现的方法?
-    在 AbstractApplicationContext#registerListeners() 中扫描容器内所有实现类加入到事件监听者集合中
-    然后在publishEvent时，遍历事件监听者调用bean的方法即可。观察者模式！
-    另外也用了BeanPostProcessor去实现, 叫ApplicationListenerDetector, 加入时机同1, 执行时机同1.
-    至于为何使用2种机制，与多例有关吧！（scope="prototype"）
-    
-3.实现Order接口时如何自动排序的?
-    比如说 BeanPostProcesser, 容器扫描后, 会像对bean集合排序, 再遍历执行.
-   	详细过程见 PostProcessorRegistrationDelegate#sortPostProcessors()
-	
-4.单例对象如何实现循环依赖注入？
-	首先， 设定对象A，B， A 持有 B, B 持有A， 构成循环
-	假设先获取A，则在doCreateBean 中 创建后将bean缓存到 singletonFactories 中
-    然后设置属性B, 解析属性, 需要获取B对象
-    获取B, 则执行doCreateBean 后执行解析属性, 需要获取 A对象 (又一次)
-    获取A, 进入 doGetBean 中的 getSingleton, 此时判断singletonFactories中有A, 则可以直接取出A
-    获得A后, 设置进属性中, 完成B的创建
-    B创建完后, A拿到了B, A设置属性B, 设置完后, 完成创建A
-    到此, 返回即可.
-  	
-    观察源码, 发现有2个缓存, 一个是 singletonFactories, 另一个是 earlySingletonObjects.
-    其中earlySingletonObjects的管理都在 getSingleton 方法中做, 而 singletonFactories 则在doCreateBean中加入, 在 getSingleton 中删除(有earlySingletonObjects后就可以删除了).
-    虽然有2个缓存, 但如果你的bean没有使用BeanFactory创建, 则其实一个缓存也足够了
-    (因为这样的话 singletonFactories 每次创建返回的都是同一个, 因为此时 singletonFactories存的只是代码包装的一个内部类, 而非用户自定义的.)
+##### 实现 `ApplicationListener` 为何会在事件触发时自动执行我们实现的方法?
 
-5. InstantiationAwareBeanPostProcessor等一些特殊BeanProcessor的扩展方法是何时自动调用的?
-    首先 getBeanPostProcessorCache 获取一些特殊的BeanPostProcessor
-    如 InstantiationAwareBeanPostProcessor/SmartInstantiationAwareBeanPostProcessor
-    然后 createBean时, 会在正确的时机使用到这些特殊的 PostProcessor, 取出来, 然后执行对应方法
-    具体何时可以查看 getBeanPostProcessorCache() 的调用位置一一排查.
-    
+```java
+1) 在 AbstractApplicationContext#registerListeners() 中扫描容器内所有实现类加入到事件监听者集合中
+2) 然后在publishEvent时，遍历事件监听者调用bean的方法即可。观察者模式！
+3) 另外也用了BeanPostProcessor去实现, 叫 ApplicationListenerDetector, 加入时机同1, 执行时机同1.
+4) 至于为何使用2种机制，与多例有关吧！(scope="prototype")
+```
+
+##### 实现`Order`接口或注解时如何自动排序的?
+
+```bash
+1) 比如说 BeanPostProcesser, 容器扫描后, 会像对bean集合排序, 再遍历执行.
+2) 详细过程见 PostProcessorRegistrationDelegate#sortPostProcessors()
+```
+
+##### 单例对象如何实现循环依赖注入？
+
+```bash
+1) 首先， 设定对象A，B， A 持有 B, B 持有A， 构成循环
+2) 假设先获取A，则在doCreateBean 中 创建后将bean缓存到 singletonFactories 中
+3) 然后设置属性B, 解析属性, 需要获取B对象
+4) 获取B, 则执行doCreateBean 后执行解析属性, 需要获取 A对象 (又一次)
+5) 获取A, 进入 doGetBean 中的 getSingleton, 此时判断singletonFactories中有A, 则可以直接取出A
+6) 获得A后, 设置进属性中, 完成B的创建
+7) B创建完后, A拿到了B, A设置属性B, 设置完后, 完成创建A
+8) 到此, 返回即可.
+```
+
+TIPS
+
+>观察源码, 发现有2个缓存, 一个是 `singletonFactories`, 另一个是 `earlySingletonObjects`.
+>其中`earlySingletonObjects`的管理都在 `getSingleton` 方法中做, 而 `singletonFactories` 则在`doCreateBean`中加入, 在 `getSingleton` 中删除(有`earlySingletonObjects`后就可以删除了).
+>虽然有2个缓存, 但如果你的bean没有使用`BeanFactory`创建, 则其实一个缓存也足够了
+>(因为这样的话 `singletonFactories` 每次创建返回的都是同一个, 因为此时 `singletonFactories`存的只是代码包装的一个内部类, 而非用户自定义的.)
+
+
+
+##### `InstantiationAwareBeanPostProcessor`等一些特殊`BeanProcessor`的扩展方法是何时自动调用的?
+
+```java
+1) 首先 getBeanPostProcessorCache 获取一些特殊的BeanPostProcessor
+2) 如 InstantiationAwareBeanPostProcessor/SmartInstantiationAwareBeanPostProcessor
+3) 然后 createBean时, 会在正确的时机使用到这些特殊的 PostProcessor, 取出来, 然后执行对应方法
+4) 具体何时可以查看 getBeanPostProcessorCache() 的调用位置一一查看.
 ```
 
 #### 注解的实现
@@ -541,71 +558,86 @@ BeanPostProcessor
 13) 触发 run 的 running 事件
 ```
 
-#### 笔记
-
-```
-
-```
-
 
 
 #### 一些东西的实现原理
 
+##### `@ConfigurationProperties` 如何实现自动注入`application.properties`中配置的值?
+
+```java
+
+```
+
+##### `@ConditionalXxx` 和 `@AfterConfiguration` 的实现原理
+
 ````java
-1.@ConfigurationProperties 如何实现自动注入application.properties中配置的值
 
-2.@ConditionalXxx 实现原理
-
-3.各种 AutoConfiguration 实现大致流程.
-    首先是 @SpringBootApplication 启用了 @EnableAutoConfiguration
-    @EnableAutoConfiguration 又使用@Import 导入了 AutoConfigurationImportSelector.class
-    然后 AutoConfigurationImportSelector 导入 spring.factories所有EnableAutoConfiguration
-    最后，一个项目依赖一个starter-xxx，会集成依赖starter的依赖项，尤其是 spring-boot-autoconfigure
-    其中spring boot自带的所有 AutoConfiguration 都在 spring-boot-autoconfigure 项目中
-    所以会加载该项目下 spirng.factories 中定义的 EnableAutoConfiguration
-    每个 AutoConfiguration 实现类被导入到容器中，然后被 ConfigurationClassPostProcessor 解析@Configuration 等注解，添加每个实现类想加的bean，或者再嵌套一层@Import，@Configuration等。
-    这样，容器中就有配置好的bean了。当然还缺了一个步骤，就是自动注入application.yml的配置到bean容器。
-
-4.SpringApplication.run 如何加载 tomcat 的?
-    
-5.application.properties 是如何被加载到Environment中的?
-    run方法中创建了Environment对象, 当初始化好一些东西后会触发事件
-    通过 SpringApplicationRunListeners 的 environmentPrepared() 告知监听者
-    默认存在 spring.factories 中的 EventPublishingRunListener 监听者负责转发事件
-    事件被转发到 ApplicationListener 下的监听者来处理
-    默认存在 spring.factories 中的 ConfigFileApplicationListener 负责加载配置
-    此监听者接受 ApplicationEnvironmentPreparedEvent 事件后
-	加载一些 postProcessor 专门用于处理环境对象的 postProcessor
-    其他的 postProcessor 暂时不管, postProcessors.add(this); 将自己也加入
-    自己的处理方法是: addPropertySources(), 此方法将会扫描指定的路径下指定的某些文件
-    然后使用 spring.factories 下的 PropertySourceLoader 一一尝试解析, 解析成功则加入到 environment 的 propertySources.
-        某些路径: getSearchLocations() ,默认: classpath:/,classpath:/config/ ...
-        某些文件: getSearchNames() ,默认: application
-      	PropertySourceLoader 有 PropertiesPropertySourceLoader/YamlPropertySourceLoader
-            一个尝试后缀有 xml/properties, 另一个是 yml/yaml
-            所有可能性有 classpath:/application.xml; classpath:/application.properties ...
-    
 ````
+
+##### 各种 `AutoConfiguration` 实现大致流程.
+
+```
+1) 首先是 @SpringBootApplication 启用了 @EnableAutoConfiguration
+2) @EnableAutoConfiguration 又使用 @Import 导入了 AutoConfigurationImportSelector.class
+3) 然后 AutoConfigurationImportSelector 导入 spring.factories所有的 EnableAutoConfiguration
+4) 最后，当一个项目依赖一个starter-xxx，会继承starter的依赖项, spring-boot-autoconfigure 由此被依赖
+5) spring-boot-autoconfigure 带有所有 boot 实现的 AutoConfiguration 和 spring.factories 配置
+6) 所以会加载该项目下 spirng.factories 中定义的 EnableAutoConfiguration
+7) 每个 AutoConfiguration 实现类被导入到容器中后
+	又被 ConfigurationClassPostProcessor 解析@Configuration, @Import 等注解 (老千层饼了)
+	这些AutoConfiguration会添加一些提供服务的 bean，或者再嵌套一层@Import，@Configuration等。
+	另外, 这些bean还是被自动配置了属性值的, 属性值哪里来? 都在 application.yml 中, 或是默认配置中.
+9) 这样，容器中就加入了一个或多个配置好的bean了, 可以直接使用. 如 stringRedisTemplate, jdbcTemplate
+```
+
+##### `application.properties` 是如何被加载到Environment中的?
+
+````java
+1) run方法中创建了Environment对象, 当初始化好一些东西后会触发事件
+2) 通过 SpringApplicationRunListeners 的 environmentPrepared() 告知监听者
+3) 默认存在 spring.factories 中的 EventPublishingRunListener 监听者负责转发事件
+4) 事件被转发到 ApplicationListener 下的监听者来处理
+5) 监听者配置在 spring.factories 中, 其中 ConfigFileApplicationListener 监听了此事件
+6) 此监听者接受 ApplicationEnvironmentPreparedEvent 事件后
+7) 加载一些 postProcessor 专门用于处理 environment 对象的 postProcessor
+8) 其他的 postProcessor 暂时不管, 真正做了加载的是 postProcessors.add(this); 自己的实现
+9) 自己的处理方法是: addPropertySources(), 此方法将会扫描指定的路径下指定的某些文件
+10) 然后使用 spring.factories 下的 PropertySourceLoader 一一尝试解析
+11) 文件存在且解析正确则加入到 environment 的 propertySources.
+	某些路径: getSearchLocations() ,默认: classpath:/,classpath:/config/ ...
+	某些文件: getSearchNames() ,默认: application
+
+TIPS: 
+PropertySourceLoader 有 PropertiesPropertySourceLoader/YamlPropertySourceLoader
+一个尝试后缀有 xml/properties, 另一个是 yml/yaml, 所以所有可能性有:
+    classpath:/application.xml; classpath:/application.properties
+	classpath:/application.yml; classpath:/application.yaml
+    ......
+````
+
+##### `SpringApplication.run()` 如何加载 tomcat 的?
+
+```java
+
+```
 
 
 
 #### Spring Boot 监听
 
-```java
-Spring Boot run方法中初始化了一个事件管理器, 用于在boot的每个生命周期触发不同的事件, 这些事件可以有很多监听者, 这些监听者都从 spring.factories 中取得.
-但是, spring 默认只加了一个监听者, 即 EventPublishingRunListener
-虽然只有一个, 但他的作用可不小, 他承上启下, 将boot的事件转发给所有的 ApplicationListener 的监听者.
-也就是说, 之前spring就存在的体系可以直接复用, 但又没有直接生搬硬套, 而是通过 EventPublishingRunListener 做一个中转, 将 boot 的事件转发出去. 使得配置的监听者 ApplicationListener 也能接受 boot 事件并处理. 如 ConfigFileApplicationListener.
-    
-spring boot 这么做, 使得 添加到 spring.factories 中的类, 可以同时监听boot的run产生的事件和context的生命周期.
-    
-严格说, EventPublishingRunListener 这样的监听者, 监听的并不是通用的事件, 而是 boot run产生的特定事件
-所以 EventPublishingRunListener 将特定事件封装成统一的 ApplicationEvent, 然后广播出去.
-
-另外，spring boot 是在 EventPublishingRunListener#contextLoaded 中将 spring.factories 中的 listens 注入到 ApplicationContext 中的。
-    
-总结: 我监听你监听的监听!
-```
+> Spring Boot run方法中初始化了一个事件管理器, 用于在boot的每个生命周期触发不同的事件, 这些事件可以有很多监听者, 这些监听者都从 `spring.factories` 中取得.
+> 但是, spring 默认只加了一个监听者, 即 `EventPublishingRunListener`
+> 虽然只有一个, 但他的作用可不小, 他承上启下, 将boot的事件转发给所有的 `ApplicationListener` 的监听者.
+> 也就是说, 之前spring就存在的体系可以直接复用, 但又没有直接生搬硬套, 而是通过 `EventPublishingRunListener` 做一个中转, 将 boot 的事件转发出去. 使得配置的监听者 `ApplicationListener `也能接受 boot 事件并处理. 如 `ConfigFileApplicationListener`.
+>
+> spring boot 这么做, 使得 添加到 `spring.factories` 中的类, 可以同时监听boot的run产生的事件和context的生命周期.
+>     
+> 严格说, `EventPublishingRunListener` 这样的监听者, 监听的并不是通用的事件, 而是 boot run 产生的特定事件
+> 所以 `EventPublishingRunListener` 将特定事件封装成统一的 `ApplicationEvent`, 然后广播出去.
+>
+> 另外，spring boot 是在 `EventPublishingRunListener#contextLoaded` 中将 `spring.factories` 中的 listens 注入到 `ApplicationContext` 中的。
+>     
+> 总结: 我监听你监听的监听!
 
 
 
@@ -698,7 +730,7 @@ DispatcherServlet#doDispatch()
 
 
 
-### Mybatis 源码
+### `Mybatis` 源码
 
 #### 关键类解析
 
@@ -806,7 +838,7 @@ TIPS:
 
 
 
-### Mybatis-Plus
+### `Mybatis-Plus`
 
 
 
