@@ -511,12 +511,12 @@ TIPS
 
 ```java
 1.MultipartAutoConfiguration
-	帮我们添加了一个bean StandardServletMultipartResolver
+	添加了一个bean StandardServletMultipartResolver, 并设置上传文件大小等属性
 	使得Spring MVC中的 DispatcherServlet 可以获取 multipartResolver, 处理文件上传.
     若不是Spring Boot, 需要在xml或注解中手动添加一个 这样的bean才能处理文件上传, 而且配置文件还要自己读取.
 
 2.MailSenderAutoConfiguration
-    帮我们添加了一个 JavaMailSenderImpl 的bean到容器中, 用于发送邮件
+    添加了一个 JavaMailSenderImpl 的bean到容器中, 并设置邮箱服务器/账号/密码等属性
     若不是Spring Boot, 需要在xml中配置一个bean即配置他的属性(邮箱配置)
 
 3.TransactionAutoConfiguration
@@ -548,7 +548,7 @@ TIPS
     把启动类class封装成 BeanDefinition 放到容器中, 使得@Configuration之类的注解生效
     触发 run 的 contextLoaded 事件
 7) 调用 context 的 refresh()
-    执行BeanFactoryPostProcessor, 如 ConfigurationClassPostProcessor 解析 @Import 注解
+    执行 BeanFactoryPostProcessor, 如 ConfigurationClassPostProcessor 解析 @Import 注解
     @Import 会实现 @EnableAutoConfiguration, 总之都是熟悉的 spring 套路. boot的东西就少了.
 8) 调用留给子类的 afterRefresh() 方法, 默认空实现
 9) 打印启动完毕信息
@@ -565,14 +565,62 @@ TIPS
 ##### `@ConfigurationProperties` 如何实现自动注入`application.properties`中配置的值?
 
 ```java
+1) 首先加了 @EnableConfigurationProperties 也会解析里面的 @Import 
+2) @Import 则引入了 EnableConfigurationPropertiesRegistrar.class
+3) 这是一个 ImportBeanDefinitionRegistrar 的实现类, 会在解析 @Configuration 注解时调用指定方法
+4) 指定方法 registerBeanDefinitions() 获取 @EnableConfigurationPropertiesRegistrar 的数据
+    如 @EnableConfigurationProperties(RabbitProperties.class) 加载 RabbitProperties.class
+    然后, 将这些 class 都注册到容器中
+5) 指定方法还注册了一些工具bean和一个重要的 BeanPostProcessor 在 registerInfrastructureBeans()中
+6) registerInfrastructureBeans() 加载了 ConfigurationPropertiesBindingPostProcessor.class
+7) 在 postProcessorBeforeInitialization() 中 调用 ConfigurationPropertiesBinder
+8) 调用链很长, 最后 property.setValue(beanSupplier, bound);设置了值 -- JavaBeanBinder
 
+总结: 就是先将 XxxProperties 类定义注入到容器中, 这样可以getBean, 然后通过 BeanPostProcessor
+    再实例化后将属性值一一绑定.
 ```
 
-##### `@ConditionalXxx` 和 `@AfterConfiguration` 的实现原理
+##### `@ConditionalXxx` 的实现原理
 
 ````java
+1) 在类上加上注解 @Conditional 或 带有 @Conditional 的其他注解:其他扩展实现
+2) 在所有的扫描类和注解的地方,如解析@Configuration, AnotatedBeanDefinitionReader等reader
+    会使用 ConditionEvaluator 的 shouldSkip() 判断是否可以加载, 时机点如下
+    AnnotatedBeanDefinitionReader#doRegisterBean() 的第二行代码
+    ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod() 第四行
+    ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForConfigurationClass()
+    ConfigurationClassParser#doProcessConfigurationClass() 处理 ComponentScan 那段
+3) 然后再 shouldSkip 中判断， 判断逻辑大致如下：
+    先遍历所有注解取得所有的 @Conditional 下的 所有 value, 这个 value 是具体的Condition实现, 如OnClassCondition
+    实例化 Condition 然后添加到 conditions中
+    排序并遍历调用 matches(), 一个不匹配则返回true, 代表应该跳过.
 
+TIPS:
+ConditionOutcome 封装了是否匹配和匹配日志信息[为啥成功/为啥失败]
+SpringBootCondition 提供了通用的根据 ConditionOutcome 判断是否匹配并记录日志信息的抽象类.
+    子类只需实现 getMatchOutcome(): 根据 metadata[注解信息] 返回 ConditionOutcome 对象.
+    因此, 如果我们要实现自己的 Condition, 可以继承它.
 ````
+
+> 另发现 `AutoConfigurationImportSelector` 也含有判断Condition的逻辑, 
+> 刚开始以为是 `AutoConfiguration` 的类没有走之前说到的判断, 所以这里要做判断.
+> 后来我一想, 这是 @Import 引入的, 所以, 是走了判断的. 因此这里多出的一个 `AutoConfigurationImportFilter`, 应该是一个额外的插件, 专门过滤配置在 `spring.factories` 中的 `AutoConfiguration` 类的. 而插件的读取, 也是读取 `spring.factories` 来遍历. 
+
+##### `@AutoConfigureAfter`  的实现原理
+
+```java
+1) 首先 AutoConfigurationImportSelector 是一个 DeferredImportSelector  
+2) 这种 DeferredImportSelector 会延迟加载, 原理是 parse 后再加载, 而非parse执行过程中就加载.
+3) 延迟加载机制 会先调用 process 方法, 将要加载的class保存起来, 然后再调用 selectImports 返回.
+4) 此时 AutoConfigurationImportSelector.AutoConfigurationGroup 的 selectImports() 会调用 sortAutoConfigurations(), 也就是调用了 AutoConfigurationSorter.getInPriorityOrder()
+5) getInPriorityOrder() 调用了 sortByAnnotation() 这个方法根据2个注解 @AutoConfigureBefore @AutoConfigureAfter 排序.
+6) 最后返回的就是有序的了. 另外, 这两个注解只能作用再 AutoConfiguration 上.
+
+总结:
+所有的 AutoConfiguration 所引入的class文件解析完毕后, 再准备加载之前, 进行排序, 然后一一加载.
+```
+
+
 
 ##### 各种 `AutoConfiguration` 实现大致流程.
 
@@ -588,6 +636,15 @@ TIPS
 	这些AutoConfiguration会添加一些提供服务的 bean，或者再嵌套一层@Import，@Configuration等。
 	另外, 这些bean还是被自动配置了属性值的, 属性值哪里来? 都在 application.yml 中, 或是默认配置中.
 9) 这样，容器中就加入了一个或多个配置好的bean了, 可以直接使用. 如 stringRedisTemplate, jdbcTemplate
+```
+
+#####  Spring Boot 是如何自动扫描main方法所在类所在包的? 
+
+```
+1) 首先是 @SpringBootApplication 启用了 @EnableAutoConfiguration
+2) @EnableAutoConfiguration 又使用 @AutoConfigurationPackage
+3) @AutoConfigurationPackage 中的 @Import 会被解析, Registrar.class 的registerBeanDefinitions会被执行
+4) 最终根据带有 @SpringBootApplication 的类去推到包名, 然后自动扫描到容器中, 效果同 @ComponentScan
 ```
 
 ##### `application.properties` 是如何被加载到Environment中的?
@@ -618,7 +675,20 @@ PropertySourceLoader 有 PropertiesPropertySourceLoader/YamlPropertySourceLoader
 ##### `SpringApplication.run()` 如何加载 tomcat 的?
 
 ```java
-
+1) boot 的 run 里面会创建 applicationContext, 如是 webApplicationType = SERVLET, 则实现类为 AnnotationConfigServletWebServerApplicationContext
+    另外一提, webApplicationType 是根据 classpath 下是否有哪些类来推断的.
+2) 这个类继承了 ServletWebServerApplicationContext
+3) ServletWebServerApplicationContext 实现了 onRefresh()
+4) onRefresh() 调用了 createWebServer()
+5) createWebServer() 使用 ServletWebServerFactory.getWebServer() 获取 webServer 对象
+6) ServletWebServerFactory 会被 ServletWebServerFactoryAutoConfiguration 引入
+    详细见 ServletWebServerFactoryConfiguration.EmbeddedTomcat.class
+7) 引入后调用 getWebServer(), 大概为 new Tomcat(), 设置属性, 然后启动.
+8) 至此, run() 启动了 tomcat 或 jetty/undertow.
+ 
+TIPS:
+spring 使用工厂模式获取webServer, 然后工厂又通过AutoConfiguration自动注入(还会判断Condition).
+    这样如果新增一种 webServer, 只需要在写一个 AutoConfiguration 注入一个 工厂即可. 非常灵活.
 ```
 
 
