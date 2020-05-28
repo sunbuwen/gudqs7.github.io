@@ -270,6 +270,101 @@ D: 持续性, 一个事务一但提交, 则对数据库的改变是永久的.
 
 ## 源码和框架
 
+### `ReentrantLock`
+
+#### 加锁流程 `lock()`
+
+```java
+1) acquire(): 尝试获取一个许可证, 获取成功则直接返回(lock结束), 获取失败则需要排队
+2) tryAcquire(): 判断当前许可证数量(state), 若为0则尝试获取
+    分公平和非公平, 公平锁会判断 hasQueuedPredecessors, 非公平则直接抢 compareAndSetState
+    若不为0, 则判断持有锁的人是否为我本身, 是则增加当前许可证数量, 返回true获取成功
+    不是则 返回 false, 获取失败(将排队).
+3) addWaiter(): AQS 队列尾部添加一个 Node(waiter=X[独占锁]), 若 tail 不存在, 则先初始化一个head
+4) acquireQueued: 进入队列的节点, 尝试获取许可证, 失败则 park()
+    先判断node的上一个节点是否为字节点, 若是, 则代表快到你了, 要尝试获取一次许可证(说不定就成功了呢)
+    如果不是, 设置了上一个节点的 waitStatus 为 SINGLE 后, 自己睡眠 park(), 等待唤醒
+5) 唤醒后, 判断上一个节点是不是 head, 一般来说是(因为unkock唤醒的一般就是head.next)
+    如果不是则进入 shouldParkAfterFailedAcquire 将队列中一些已取消的节点从队列中删除, 重新设置节点的prev
+    因为是for循环, 所以又会再回来判断, 这时应该是head了, 尝试获取许可证, 2种可能, 非公平时被刚lock的人抢了(概率较小吧), 另一种就是获取成功
+    获取成功后, 把原head节点删掉, 自己设为head节点(head象征一个拿到许可证的节点), 然后返回到acquire(), 中途没有线程被打断就正常出方法, lock结束
+
+总结:
+得到方式1: acquire 时 state = 0, 且抢到了.
+得到方式2: 没抢到或没得抢, 进入队列等上一个来唤醒我, 上一个等上上个来唤醒他, 上上个等上上上个唤醒....
+    unlock 唤醒队列第二个非取消的线程并删除队列第一个元素 [其他元素移位]
+    这样第二个线程就可以唤醒非取消的第三个线程[相对而言的第三个,实际上唤醒时还是第二个, 只是唤醒后会删除第一个, 所以第三变第二]
+```
+
+#### 解锁流程 `unlock()`
+
+```
+1) release(): 释放一个许可证, 并根据当前许可证数量是否为0 判断是否可以唤醒下一个节点
+2) tryRelease(): 释放一个许可证, 判断线程是否正确(是不是当前独占锁), 许可证减一
+	当前许可证数量是否为 0 返回是否可以唤醒队列的 bool 标识.
+3) unparkSuccessor(): 唤醒队列中除head外第一个处于阻塞(非取消)的节点.
+4) 唤醒后, 会将head设置为唤醒的节点, 以此达到下次唤醒下一个的目的.
+
+总结:
+唤醒的逻辑就是将排队的所有节点挨个唤醒, 而节点被唤醒后又会出队列; 所以代码将出队列和唤醒逻辑一起做, 先唤醒下一个, 下一个负责把前一个移出队列. 然后唤醒自己的下一个, 以此类推, 就实现了唤醒和出队列的操作.
+```
+
+### `ReentrantReadWriteLock`
+
+```java
+读锁
+	获取锁 tryAcquireShared(), 若当前没有写锁存在, 则 state + 1个读单位, 然后返回获取成功. 防止返回获取失败, 进入队列休眠.
+	释放锁 tryReleaseShared(), state - 1个读单位, 然后根据 state = 0 返回是否可以唤醒队列.
+	
+写锁
+	获取锁 tryAcquire(), 若存在读锁, 则失败, 若存在写锁, 判断是否重入获取, 是则返回获取成功. 否则失败; 失败就意味着加队列,休眠.
+    释放锁 tryRelease(), state - 1, 判断 state 中写锁数量是否为0, 是则可以唤醒队列. 否则代表这时一个可重入锁的释放逻辑.
+   
+总结: 读写锁也好, 可重入锁也好, CountDownLatch 等工具类也好, 都是对 state 操作为多, 或者说, 实现了 AQS的它们, 只负责操作 state, 而队列, 唤醒, 都交给 AQS 来处理.
+```
+
+
+
+### `CountDownLatch`
+
+#### `countDown()`
+
+```
+1) state 数量减一, 然后判断 state 数量是否为0, 若是则唤醒等待队列的线程. 
+```
+
+#### `await()`
+
+```
+1) new 之后, state 数量大于0, 所以会进入等待队列, 然后线程会进入休眠.
+2) 等待countDown释放锁, 释放到许可证为0时, 唤醒等待队列的线程.
+```
+
+> 总结:
+>
+> 利用了加共享锁进入队列等待特性实现 `await()`
+>
+> 释放共享锁减少许可证数量且唤醒队列中的等待的线程 实现 `countDown()`
+
+### `Semaphore`
+
+```
+与 CountDownLatch 相反, 初始数量一般为 0, acquire() 时判断是否有许可证, 有则成功, 无则队列休眠
+而 release 则是添加一个许可证, 添加后总是唤醒队列.
+```
+
+### `CycleBarrier`
+
+```
+含义: 凑足一定个数线程, 然后批量唤醒.
+await(): 利用 ReenrantLock 的 lock 和 condition 的 await 进入休眠
+当凑足后，用condition 的 singleAll 唤醒所有 await 的线程.
+```
+
+
+
+
+
 ### `HashMap`
 
 #### 请简述 `HashMap` 的底层数据结构
@@ -701,12 +796,12 @@ spring 使用工厂模式获取webServer, 然后工厂又通过AutoConfiguration
 > 也就是说, 之前spring就存在的体系可以直接复用, 但又没有直接生搬硬套, 而是通过 `EventPublishingRunListener` 做一个中转, 将 boot 的事件转发出去. 使得配置的监听者 `ApplicationListener `也能接受 boot 事件并处理. 如 `ConfigFileApplicationListener`.
 >
 > spring boot 这么做, 使得 添加到 `spring.factories` 中的类, 可以同时监听boot的run产生的事件和context的生命周期.
->     
+>    
 > 严格说, `EventPublishingRunListener` 这样的监听者, 监听的并不是通用的事件, 而是 boot run 产生的特定事件
 > 所以 `EventPublishingRunListener` 将特定事件封装成统一的 `ApplicationEvent`, 然后广播出去.
 >
 > 另外，spring boot 是在 `EventPublishingRunListener#contextLoaded` 中将 `spring.factories` 中的 listens 注入到 `ApplicationContext` 中的。
->     
+>    
 > 总结: 我监听你监听的监听!
 
 
