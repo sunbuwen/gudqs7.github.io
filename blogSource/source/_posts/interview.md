@@ -615,10 +615,11 @@ TIPS
     若不是Spring Boot, 需要在xml中配置一个bean即配置他的属性(邮箱配置)
 
 3.TransactionAutoConfiguration
-    
+    在内部类添加 @EnableTransactionManagement，剩下的参考上面的 Spring 事务实现
     
 4.WebMvcAutoConfiguration
-    
+    添加了 RequestMappingHandlerAdapter/RequestMappingHandlerMapping
+    添加了 ContentNegotiatingViewResolver
 
 ```
 
