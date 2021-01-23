@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"gudqs7.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="一句话说一下你重构代码都做了什么? 首先是两层改成三层, 把controller 的代码尽量迁移到 service 层. 然后将请求风格和响应数据结构统一. 还有就是处理全局异常, 最后对某些重复代码封装成工具类. 另外还会根据实际业务场景使用一些设计模式, 提高代码可扩展性, 降低代码之间的耦合性.  什么是 JVM?  JVM 就是由编译器, 类加载器, 执行引擎, 运行时数据区组成. 其中数">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java-Interview">
+<meta property="og:url" content="https://gudqs7.github.io/2020/05/20/interview/index.html">
+<meta property="og:site_name" content="gudqs7&#39;s note">
+<meta property="og:description" content="一句话说一下你重构代码都做了什么? 首先是两层改成三层, 把controller 的代码尽量迁移到 service 层. 然后将请求风格和响应数据结构统一. 还有就是处理全局异常, 最后对某些重复代码封装成工具类. 另外还会根据实际业务场景使用一些设计模式, 提高代码可扩展性, 降低代码之间的耦合性.  什么是 JVM?  JVM 就是由编译器, 类加载器, 执行引擎, 运行时数据区组成. 其中数">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-05-20T00:48:14.000Z">
+<meta property="article:modified_time" content="2021-01-23T06:39:57.123Z">
+<meta property="article:author" content="gudqs7">
+<meta property="article:tag" content="interview">
+<meta property="article:tag" content="mybatis-source">
+<meta property="article:tag" content="spring-mvc-source">
+<meta property="article:tag" content="jvm">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://gudqs7.github.io/2020/05/20/interview/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Java-Interview | gudqs7's note</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">gudqs7's note</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">心累没钱躺尸中</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://gudqs7.github.io/2020/05/20/interview/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="gudqs7">
+      <meta itemprop="description" content="心累没钱躺尸中">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="gudqs7's note">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java-Interview
+        </h1>
+
+        <div class="post-meta">
+			
+				<i class="fa fa-thumb-tack"></i>
+				<font color="RED">置顶</font>
+				<span class="post-meta-divider">|</span>
+			
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-05-20 08:48:14" itemprop="dateCreated datePublished" datetime="2020-05-20T08:48:14+08:00">2020-05-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-01-23 14:39:57" itemprop="dateModified" datetime="2021-01-23T14:39:57+08:00">2021-01-23</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spring/" itemprop="url" rel="index"><span itemprop="name">Spring</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/MyBatis/" itemprop="url" rel="index"><span itemprop="name">MyBatis</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spring-MVC/" itemprop="url" rel="index"><span itemprop="name">Spring-MVC</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/interview/" itemprop="url" rel="index"><span itemprop="name">interview</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus：</span>
+    
+    <a title="disqus" href="/2020/05/20/interview/#disqus_thread" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/05/20/interview/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="一句话"><a href="#一句话" class="headerlink" title="一句话"></a>一句话</h2><h3 id="说一下你重构代码都做了什么"><a href="#说一下你重构代码都做了什么" class="headerlink" title="说一下你重构代码都做了什么?"></a>说一下你重构代码都做了什么?</h3><blockquote>
+<p>首先是两层改成三层, 把controller 的代码尽量迁移到 service 层. 然后将请求风格和响应数据结构统一. 还有就是处理全局异常, 最后对某些重复代码封装成工具类. 另外还会根据实际业务场景使用一些设计模式, 提高代码可扩展性, 降低代码之间的耦合性.</p>
+</blockquote>
+<h3 id="什么是-JVM"><a href="#什么是-JVM" class="headerlink" title="什么是 JVM?"></a>什么是 JVM?</h3><blockquote>
+<p> JVM 就是由编译器, 类加载器, 执行引擎, 运行时数据区组成. 其中数据区包含 堆,栈,本地方法栈, 方法区和程序计数器(PC 寄存器), 其中栈是由局部变量表, 操作数栈, 动态链接, 返回地址组成的.</p>
+</blockquote>
+<h3 id="你是怎么对-jvm-垃圾回收进行优化的"><a href="#你是怎么对-jvm-垃圾回收进行优化的" class="headerlink" title="你是怎么对 jvm 垃圾回收进行优化的?"></a>你是怎么对 jvm 垃圾回收进行优化的?</h3><blockquote>
+<p>根据服务器的配置, 调整青年代和老年代的内存大小及比例, 在回收频率和回收速度上做取舍, 使用 G1 垃圾回收期控制 STW 停顿时间, 提高吞吐量.</p>
+</blockquote>
+<h3 id="说说-MySQL-优化"><a href="#说说-MySQL-优化" class="headerlink" title="说说 MySQL 优化"></a>说说 MySQL 优化</h3><blockquote>
+<p>首先是 SQL 查询优化, 通过对联表字段, 查询条件, 分组字段, 排序字段进行综合分析, 根据最左原则建立一个或多个复合索引, 然后使用 explain 分析SQL执行计划, 判断索引使用情况, 根据分析结果进一步改进索引.</p>
+<p>然后是对于数据量大的表, 考虑垂直或水平分表, 读多写少的情况, 可以一主多从集群. 另外对于一些统计类的查询, 可以用定时任务将统计结果存储起来, 而非实时查询.</p>
+</blockquote>
+<h3 id="你用-Redis-做了什么"><a href="#你用-Redis-做了什么" class="headerlink" title="你用 Redis 做了什么?"></a>你用 Redis 做了什么?</h3><blockquote>
+<p>将高访问的首页商品列表缓存到 redis 中, 避免数据库瓶颈, 提高响应速度. </p>
+<p>商品同步问题: 定时任务刷新. 或修改商品时更新, 缓存设置失效时间, 失效后自动读取数据库.</p>
+<p>将购物车数据存放到 redis, 提高购物车交互体验(加快响应速度).</p>
+</blockquote>
+<h3 id="你使用消息队列做了什么"><a href="#你使用消息队列做了什么" class="headerlink" title="你使用消息队列做了什么?"></a>你使用消息队列做了什么?</h3><blockquote>
+<p>解耦: 如下单系统调用库存系统减库存, 若调用时库存系统挂了或出错了, 下单系统还需要做重试处理, 异常处理, 此时可将减库存请求放到消息队列中, 库存系统读取消息进行处理, 若出错则放回消息队列重试. 这样即使代码 bug 导致一直不成功也可在升级后自动重试, 无需人工干预. 另微信支付回调也可如此处理.</p>
+<p>削峰: 如秒杀瞬间请求过高, 可将请求放到消息队列中, 另一端缓慢消费, 可防止系统卡住.</p>
+<p>异步: 比如下单后发送下单通知, 有短信通知, 微信公众号通知等, 一个一个发送会导致下单这个请求响应很慢, 因此可以将几个通知做成一个消息, 放到消息队列, 由另一处代码异步执行.</p>
+</blockquote>
+<h3 id="你使用线程池做了什么"><a href="#你使用线程池做了什么" class="headerlink" title="你使用线程池做了什么?"></a>你使用线程池做了什么?</h3><blockquote>
+<p>将线程池封装到一个工具类中, 工具类再做成单例模式. 这样使用到多线程的地方都可以使用同一个公共线程池, 减少线程对象创建销毁. 提高线程的利用率.</p>
+<p>一些地方异步操作, 拦截器添加请求日志时异步添加.</p>
+</blockquote>
+<h3 id="你在代码中使用了哪些设计模式"><a href="#你在代码中使用了哪些设计模式" class="headerlink" title="你在代码中使用了哪些设计模式?"></a>你在代码中使用了哪些设计模式?</h3><blockquote>
+<p>单例模式, 静态工厂模式, 模板方法, 观察者, 装饰者, 策略模式, 状态模式, 职责链模式.</p>
+<p>观察者: 监听商品信息更新, 根据佣金变化幅度决定是否删除, 根据佣金变化和价格变化幅度决定是否通知用户收藏商品变化.</p>
+<p>策略模式: 订单不同类型, 对应的商品源不同, 查询数据方式不同, 因此使用策略模式, 便于新增类型的扩展.</p>
+<p>状态模式: 红包状态的变化, 可以做成状态模式, 使得红包新增状态时扩展更简单.</p>
+</blockquote>
+<h2 id="架构"><a href="#架构" class="headerlink" title="架构"></a>架构</h2><h3 id="重构"><a href="#重构" class="headerlink" title="重构"></a>重构</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">重复代码重构, 抽象出工具类, 返回值&#x2F;自定义异常 整理重构, 统一请求风格</span><br><span class="line">使用状态模式&#x2F;策略模式优化 if&#x2F;else</span><br><span class="line">使用工厂模式统一管理需要的实例对象, 如工具类, 邮件服务等</span><br><span class="line">封装通用 CRUD 接口及实现, 减少 Dao 层代码</span><br><span class="line"></span><br><span class="line">模块的拆分, 数据库分库分表, 微服务拆分</span><br></pre></td></tr></table></figure>
+
+<h3 id="集群"><a href="#集群" class="headerlink" title="集群"></a>集群</h3><h4 id="MySQL-集群"><a href="#MySQL-集群" class="headerlink" title="MySQL 集群"></a>MySQL 集群</h4><blockquote>
+<p>MySQL 默认支持主从架构集群, 可配合 mycat 实现读写分离.</p>
+</blockquote>
+<h4 id="Redis-集群"><a href="#Redis-集群" class="headerlink" title="Redis 集群"></a>Redis 集群</h4><blockquote>
+<p>Redis Cluster, Codis</p>
+</blockquote>
+<h4 id="Tomcat-集群"><a href="#Tomcat-集群" class="headerlink" title="Tomcat 集群"></a>Tomcat 集群</h4><blockquote>
+<p>tomcat 集群一般需要考虑 session 共享, 可通过 redis 实现 session 共享.</p>
+</blockquote>
+<h3 id="分布式"><a href="#分布式" class="headerlink" title="分布式"></a>分布式</h3><h4 id="SpringCloud"><a href="#SpringCloud" class="headerlink" title="SpringCloud"></a>SpringCloud</h4><blockquote>
+<p>Spring Cloud 是一套分布式开发的解决方案, 集合了分布式调用, 链路追踪, 降级处理, 服务注册发现.</p>
+</blockquote>
+<h4 id="Dubbo"><a href="#Dubbo" class="headerlink" title="Dubbo"></a>Dubbo</h4><blockquote>
+<p>Dubbo 是一个分布式 RPC 调用框架, 底层使用 netty 框架.</p>
+</blockquote>
+<h3 id="运维"><a href="#运维" class="headerlink" title="运维"></a>运维</h3><h4 id="Docker"><a href="#Docker" class="headerlink" title="Docker"></a>Docker</h4><blockquote>
+<p>docker 是一个容器, 提供了标准化的接口, 可用于快速构建部署环境, 简化部署流程</p>
+</blockquote>
+<h4 id="docker-compose"><a href="#docker-compose" class="headerlink" title="docker-compose"></a>docker-compose</h4><blockquote>
+<p>docker-compose 使用 yml 文件描述容器间的关系以及容器的配置, 可用于快速构建复杂的运行环境.</p>
+</blockquote>
+<h4 id="K8s"><a href="#K8s" class="headerlink" title="K8s"></a>K8s</h4><blockquote>
+<p>K8s 是一个根据容器快速搭建和管理集群的工具.</p>
+</blockquote>
+<h2 id="JVM"><a href="#JVM" class="headerlink" title="JVM"></a>JVM</h2><h3 id="JVM-内存模型"><a href="#JVM-内存模型" class="headerlink" title="JVM 内存模型"></a>JVM 内存模型</h3><blockquote>
+<p>每个线程有自己的内存区域, 多线程之间通信主要通过共享内存来实现.</p>
+</blockquote>
+<ul>
+<li>有序性: 在 CPU 执行指令时, 可能会对非 happens-before 指令进行重排, 优化执行效率. 在单线程情况, 往往不会产生问题, 但涉及多线程时, 可能导致 bug.</li>
+<li>可见性: 一个线程修改了一个共享变量, 另一个线程不会知道这个改变, 这就是不可见, 要确保可见性, 一般使用 volatile 关键词, 当然, 加锁也可以.</li>
+<li>原子性: 即对于某代码, 实际执行时会分为好几个原子指令, 确保原子性必须加锁 (如synchronized) 处理</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">happens-before:</span><br><span class="line">读后写</span><br><span class="line">写后写</span><br><span class="line">锁后解锁</span><br><span class="line">可传递性</span><br></pre></td></tr></table></figure>
+
+<h3 id="多线程"><a href="#多线程" class="headerlink" title="多线程"></a>多线程</h3><blockquote>
+<p>线程是一个进程中的不同执行路径, 一个进程至少有一个主线程.</p>
+<p>进程是一个程序的抽象, 一个程序运行后一般为一个进程.</p>
+</blockquote>
+<p>线程状态:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">1.New (新建)</span><br><span class="line">2.Runnable (就绪)</span><br><span class="line">3.Running (运行中)</span><br><span class="line">4.Blocked (阻塞)</span><br><span class="line">5.WAITING (等待)</span><br><span class="line">6.TIMED_WAITING (超时等待)</span><br><span class="line">7.Dead (死亡)</span><br><span class="line"></span><br><span class="line">[t:thread对象, obj: 同步块中的对象]</span><br><span class="line">New: new Thread()</span><br><span class="line">Runnable: t.start(), t.yield()</span><br><span class="line">Running: after t.start() and cpu run it</span><br><span class="line">Blocked: when enter synchronized block</span><br><span class="line">WAITING: obj.wait(), t.join(), LockSupport.park()</span><br><span class="line">TIMED_WAITING: Thread.sleep(x), obj.wait(x), t.join(x)</span><br><span class="line">Dead: when t.run() is over</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="JVM-对象结构"><a href="#JVM-对象结构" class="headerlink" title="JVM 对象结构"></a>JVM 对象结构</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">对象头:</span><br><span class="line">	Mark Word(hash, 锁状态, 分代年龄)</span><br><span class="line">	类型指针</span><br><span class="line">	[数组长度]</span><br><span class="line">实例数据</span><br><span class="line">对齐</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="垃圾回收"><a href="#垃圾回收" class="headerlink" title="垃圾回收"></a>垃圾回收</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">标记算法:</span><br><span class="line">	1.引用计数法</span><br><span class="line">	2.可达性分析算法(根搜索)(根对象: 栈中的对象, 静态属性引用对象, 常量引用对象)</span><br><span class="line">回收算法:</span><br><span class="line">	1.标记-清除算法</span><br><span class="line">	2.标记-整理算法</span><br><span class="line">	3.标记-复制算法</span><br><span class="line">	4.分代算法( Eden 区(复制算法)--&gt; Survivor 区(缓存, 复制算法) --&gt; Old 区(标记-整理)</span><br><span class="line"></span><br><span class="line">回收器: (前 3 个 Young GC 使用, 后面的 Full GC 使用)</span><br><span class="line">	1.Serial (串行, 复制算法)</span><br><span class="line">	2.ParNew (多线程, 复制算法)</span><br><span class="line">	3.Parallel Scavenge (多线程, 改进版, 可控制吞吐量)</span><br><span class="line">	4.Serial Old(单线程, 标记-整理)</span><br><span class="line">	5.Parallel Old (多线程, 控制吞吐量, 标记-整理算法)</span><br><span class="line">	6.CMS (多线程, 低停顿, 标记-清除算法) : 初始(STW)-并发-重新(STW)-清除</span><br><span class="line">	7.G1 (多线程, CMS 升级版, 标记-整理算法): 初始(STW)-并发-最终(STW)-筛选清除(可控制停顿时间)</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="MySQL"><a href="#MySQL" class="headerlink" title="MySQL"></a>MySQL</h2><h3 id="SQL-优化"><a href="#SQL-优化" class="headerlink" title="SQL 优化"></a>SQL 优化</h3><h4 id="索引原理"><a href="#索引原理" class="headerlink" title="索引原理"></a>索引原理</h4><blockquote>
+<p>MySQL 索引一般选择 B+树做为数据结构存储. B+ 树的优点是, 对文件IO的访问次数控制在 3 次, 保证速度的同时, 能存储千万行数据.</p>
+</blockquote>
+<h4 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1.对常用列添加索引, 视具体情况选择单一索引或复合索引(一般为复合)</span><br><span class="line">2.通过 Explain 语句分析执行计划, 将 type 提升到至少 index 级别.</span><br><span class="line">3.通过 Explain 语句分析执行计划, 将 extra 中 Using filesort消除(排序列加索引), Using join buffer消除 (通过给关联表的关联列加索引), Using temporary (一般通过分组列加索引), Using where(根据最左原则对条件列加复合索引)</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="事务"><a href="#事务" class="headerlink" title="事务"></a>事务</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ACID:</span><br><span class="line">A: 原子性, 多个操作要么都做, 要么都不做</span><br><span class="line">C: 一致性, 数据库文件的状态必须从一个一致性状态到另一个一致性状态.</span><br><span class="line">I: 隔离性, 事物之间相互隔离, 互不影响.</span><br><span class="line">D: 持续性, 一个事务一但提交, 则对数据库的改变是永久的.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="数据库隔离级别"><a href="#数据库隔离级别" class="headerlink" title="数据库隔离级别"></a>数据库隔离级别</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1.读未提交: 可读取其他未提交事务的执行结果(如更新了某个字段), 可能会造成读取错误的数据(未提交的事务回滚了), 造成脏读.</span><br><span class="line">2.读已提交: 可读取其他已提交事务的执行结果, 2次读取数据还是可能不一致(其他事务又提交了), 造成不可重复读.</span><br><span class="line">3.可重复读: 确保同一事务内多次读取数据时, 会看到相同的数据. 但可能造成幻读, 如批量修改登录密码后, 另一个事务新增了一条记录, 导致新纪录未修改.</span><br><span class="line">4.串行化: 事务串行化执行, 效率低.</span><br></pre></td></tr></table></figure>
+
+<h4 id="MySQL-默认隔离级别"><a href="#MySQL-默认隔离级别" class="headerlink" title="MySQL 默认隔离级别"></a>MySQL 默认隔离级别</h4><p><code>可重读读</code></p>
+<h3 id="数据库锁"><a href="#数据库锁" class="headerlink" title="数据库锁"></a>数据库锁</h3><h4 id="锁原理"><a href="#锁原理" class="headerlink" title="锁原理"></a>锁原理</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">行锁: 分为排它锁(X) 和共享锁(S). 即写锁和读锁.</span><br><span class="line">表锁: 分为元数据锁(MDL)和表锁.</span><br></pre></td></tr></table></figure>
+
+<h4 id="锁触发方式"><a href="#锁触发方式" class="headerlink" title="锁触发方式"></a>锁触发方式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">行锁: 隐式(条件带有索引则锁对应列, 不带索引则锁全部行, RR 总会带有 GAP 锁, RC 不会), 显式(使用 for update, lock in share mode)</span><br><span class="line">表锁: 隐式(对整个表不带条件进行增删改, 或任何 DDL 操作) 显示(使用 for update, lock in share mode)</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="源码和框架"><a href="#源码和框架" class="headerlink" title="源码和框架"></a>源码和框架</h2><h3 id="ReentrantLock"><a href="#ReentrantLock" class="headerlink" title="ReentrantLock"></a><code>ReentrantLock</code></h3><h4 id="加锁流程-lock"><a href="#加锁流程-lock" class="headerlink" title="加锁流程 lock()"></a>加锁流程 <code>lock()</code></h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) acquire(): 尝试获取一个许可证, 获取成功则直接返回(lock结束), 获取失败则需要排队</span><br><span class="line"><span class="number">2</span>) tryAcquire(): 判断当前许可证数量(state), 若为<span class="number">0</span>则尝试获取</span><br><span class="line">     分公平和非公平, 公平锁会判断 hasQueuedPredecessors, 非公平则直接抢 compareAndSetState</span><br><span class="line">     若不为<span class="number">0</span>, 则判断持有锁的人是否为我本身, 是则增加当前许可证数量, 返回<span class="keyword">true</span>获取成功</span><br><span class="line">     不是则 返回 <span class="keyword">false</span>, 获取失败(将排队).</span><br><span class="line"><span class="number">3</span>) addWaiter(): AQS 队列尾部添加一个 Node(waiter=X[独占锁]), 若 tail 不存在, 则先初始化一个 空head[空指不代表任何线程] 后再加入队列</span><br><span class="line"><span class="number">4</span>) acquireQueued: 进入队列的节点, 尝试获取许可证, 失败则 park()</span><br><span class="line">     先判断node的上一个节点是否为 head 节点, 若是, 则要尝试获取一次许可证(因为这说明上一个线程已经在执行过程中了, 也许已经走完了unlock() 方法(即已经运行过唤醒队列下一位的代码了,而因为你那时还不在队列中或没进入睡眠中, 唤醒代码是无意义的), 而你则刚加入队列, 如果你此时直接park()去等待唤醒, 则根本无人唤醒你, 同理你的下一个节点也就等不到你去唤醒它.)</span><br><span class="line">     如果不是, 设置了上一个节点的 waitStatus 为 SINGLE 后, 自己睡眠 park(), 等待唤醒</span><br><span class="line"></span><br><span class="line">唤醒后:  </span><br><span class="line"><span class="number">5</span>) 判断上一个节点是不是 head, 一般来说是(因为unkock唤醒的一般就是head.next)</span><br><span class="line">     如果不是则进入 shouldParkAfterFailedAcquire: 将队列中一些已取消的节点从队列中删除, 重新设置节点的prev</span><br><span class="line">     因为是<span class="keyword">for</span>循环, 所以又会再回来判断, 这时应该是head了, 尝试获取许可证, <span class="number">2</span>种可能, 非公平时被刚lock的人抢了(概率较小吧), 另一种就是获取成功</span><br><span class="line">     获取成功后, 把原head节点删掉, 自己设为head节点(head象征一个拿到许可证的节点,除队列第一次初始化), 然后返回到acquire(), 中途没有线程被打断就正常出方法, lock结束</span><br><span class="line"></span><br><span class="line">总结:</span><br><span class="line">得到方式<span class="number">1</span>: acquire 时 state = <span class="number">0</span>, 且抢到了.</span><br><span class="line">得到方式<span class="number">2</span>: 没抢到或不让抢(公平锁), 进入队列等上一个来唤醒我, 上一个等上上个来唤醒他, 上上个等上上上个唤醒....</span><br><span class="line">    unlock 唤醒队列第二个非取消的线程并删除队列第一个元素 [其他元素移位]</span><br><span class="line">    这样第二个线程就可以唤醒非取消的第三个线程[相对而言的第三个,实际上唤醒时还是第二个, 只是唤醒后会删除第一个, 所以第三变第二]</span><br></pre></td></tr></table></figure>
+
+<h4 id="解锁流程-unlock"><a href="#解锁流程-unlock" class="headerlink" title="解锁流程 unlock()"></a>解锁流程 <code>unlock()</code></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">1) release(): 释放一个许可证, 并根据当前许可证数量是否为0 判断是否可以唤醒下一个节点</span><br><span class="line">2) tryRelease(): 释放一个许可证, 判断线程是否正确(是不是当前独占锁), 许可证减一</span><br><span class="line">	当前许可证数量是否为 0 返回是否可以唤醒队列的 bool 标识.</span><br><span class="line">3) unparkSuccessor(): 唤醒队列中除head外第一个处于阻塞(非取消)的节点(查找方式, 先看next, next状态不对则从后往前找最前的非取消的节点, 因为next如果为null, 无法找null的next).</span><br><span class="line">4) 唤醒后, 会将head设置为唤醒的节点, 以此达到下次唤醒下一个的目的.</span><br><span class="line"></span><br><span class="line">总结:</span><br><span class="line">唤醒的逻辑就是将排队的所有节点挨个唤醒, 而节点被唤醒后又会出队列; 所以代码将出队列和唤醒逻辑一起做, 先唤醒下一个, 下一个负责把前一个移出队列. 然后唤醒自己的下一个, 以此类推, 就实现了唤醒和出队列的操作.</span><br></pre></td></tr></table></figure>
+
+<h3 id="ReentrantReadWriteLock"><a href="#ReentrantReadWriteLock" class="headerlink" title="ReentrantReadWriteLock"></a><code>ReentrantReadWriteLock</code></h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">读锁</span><br><span class="line">	获取锁 tryAcquireShared(), 若当前没有写锁存在, 则 state + <span class="number">1</span>个读单位, 然后返回获取成功. 防止返回获取失败, 进入队列休眠.</span><br><span class="line">	释放锁 tryReleaseShared(), state - <span class="number">1</span>个读单位, 然后根据 state = <span class="number">0</span> 判断返回是否可以唤醒队列.</span><br><span class="line">	</span><br><span class="line">写锁</span><br><span class="line">	获取锁 tryAcquire(), 若存在读锁, 则失败, 若存在写锁, 判断是否重入获取, 是则返回获取成功. 否则失败; 失败就意味着加队列,休眠.</span><br><span class="line">    释放锁 tryRelease(), state - <span class="number">1</span>, 判断 state 中写锁数量是否为<span class="number">0</span>, 是则可以唤醒队列. 否则代表这时一个可重入锁的释放逻辑.</span><br><span class="line">   </span><br><span class="line">总结: 读写锁也好, 可重入锁也好, CountDownLatch 等工具类也好, 都是对 state 操作为多, 或者说, 实现了 AQS的它们, 只负责操作 state, 而队列, 唤醒, 都交给 AQS 来处理.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="CountDownLatch"><a href="#CountDownLatch" class="headerlink" title="CountDownLatch"></a><code>CountDownLatch</code></h3><h4 id="countDown"><a href="#countDown" class="headerlink" title="countDown()"></a><code>countDown()</code></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1) state 数量减一, 然后判断 state 数量是否为0, 若是则唤醒等待队列的线程.</span><br></pre></td></tr></table></figure>
+
+<h4 id="await"><a href="#await" class="headerlink" title="await()"></a><code>await()</code></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1) new 之后, state 数量大于0, 所以会进入等待队列, 然后线程会进入休眠.</span><br><span class="line">2) 等待countDown释放锁, 释放到许可证为0时, 唤醒等待队列的线程.</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>总结:</p>
+<p>利用了加共享锁进入队列等待特性实现 <code>await()</code></p>
+<p>释放共享锁减少许可证数量且唤醒队列中的等待的线程 实现 <code>countDown()</code></p>
+</blockquote>
+<h3 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a><code>Semaphore</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">与 CountDownLatch 相反, 初始数量一般为 0, acquire() 时判断是否有许可证, 有则成功, 无则队列休眠</span><br><span class="line">而 release 则是添加一个许可证, 添加后总是唤醒队列.</span><br></pre></td></tr></table></figure>
+
+<h3 id="CycleBarrier"><a href="#CycleBarrier" class="headerlink" title="CycleBarrier"></a><code>CycleBarrier</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">含义: 凑足一定个数线程, 然后批量唤醒.</span><br><span class="line">await(): 利用 ReenrantLock 的 lock 和 condition 的 await 进入休眠</span><br><span class="line">当凑足后，用condition 的 singleAll 唤醒所有 await 的线程.</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h3 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a><code>HashMap</code></h3><h4 id="请简述-HashMap-的底层数据结构"><a href="#请简述-HashMap-的底层数据结构" class="headerlink" title="请简述 HashMap 的底层数据结构"></a>请简述 <code>HashMap</code> 的底层数据结构</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1. 使用了数组加链表, 以数组为主, 链表加红黑树为补充的数据结构来存储键值对.</span><br><span class="line">2. 当键发送冲突(碰撞)时, 数据将串成链表存于数组中, 当链表长度超过指定值(默认 8)时, 链表转成红黑树, 当红黑树长度小于指定值时(默认 6), 则又转成链表</span><br></pre></td></tr></table></figure>
+
+<h4 id="为什么-HashMap-的初始容量以及扩容后的容量均为-2-的指数幂"><a href="#为什么-HashMap-的初始容量以及扩容后的容量均为-2-的指数幂" class="headerlink" title="为什么 HashMap 的初始容量以及扩容后的容量均为 2 的指数幂"></a>为什么 <code>HashMap</code> 的初始容量以及扩容后的容量均为 2 的指数幂</h4><blockquote>
+<p>因为计算机做运算时, 取模运算速度远远慢于位运算, 而若容量始终为 2 的指数幂, 则根据 hash 获取数组下标时只需要 使用 <code>(数组长度-1) &amp; hash 值</code> 即可确定数组下标, 与取模得到的下标一样可靠.</p>
+<p>而扩容后后, 因为需要进行 rehash 运算来确定 数据的新下标, 多次进行取数组下标则更能体现位运算的优势.</p>
+</blockquote>
+<h4 id="为什么-HashMap-的加载因子是-0-75-3-4"><a href="#为什么-HashMap-的加载因子是-0-75-3-4" class="headerlink" title="为什么 HashMap 的加载因子是 0.75 (3/4)"></a>为什么 <code>HashMap</code> 的加载因子是 0.75 (3/4)</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">使用排除法:</span><br><span class="line">1.若加载因子为 1. 则每次 HashMap 满了才进行扩容, 必将有更高的几率触发 hash 碰撞导致数组下标一致需要转成链表或红黑树, 导致读取和更新速度降低.</span><br><span class="line">2.若加载因子为 0.5. 则每次 HashMap 都有一半容量剩余, 空间大大浪费, 对内存开销太大. 容易引发 OOM 事故.</span><br><span class="line"></span><br><span class="line">另外:</span><br><span class="line">0.5-1 之间那么多可能, 选哪个都行, 但作为 HashMap 的默认值, 选中间的 0.75, 走中庸之路, 也是解释的通的.</span><br></pre></td></tr></table></figure>
+
+<h4 id="为什么-HashMap-1-8-扩容无需-rehash"><a href="#为什么-HashMap-1-8-扩容无需-rehash" class="headerlink" title="为什么 HashMap 1.8 扩容无需 rehash"></a>为什么 <code>HashMap</code> 1.8 扩容无需 rehash</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">1. 因为1.8的获取 hash 值的算法优化了. 无需一个 hashSeed 进行辅助运算 (主因)</span><br><span class="line">2. 由于 hash 值不变, 原链表中的所有节点只有 2 种可能:</span><br><span class="line">	一是 hash 值高于原数组长度, 则属于高位, 这些高位的节点, 新的下标一定是 (当前下标 + 旧数组长度). </span><br><span class="line">	另一种是 hash 值低于原数组长度, 属于低位, 这些节点的下标无需重新计算, 必然与当前下标一致</span><br><span class="line">	(不信自己那几个示例数据用画出完整二进制计算一下)(神奇的位运算)</span><br><span class="line">3. 重新计算下标时, 根据第 2 点可知, 其下标大小一定不高于(当前下标+旧数组长度), 即下一次循环的下标必然比上一次循环的下标要高, 所以 1.8 源码 resize 进行高低位分组然后转移数据时, 无需担心下一次循环会将刚刚放到新数组的值覆盖(下标相同则会覆盖)</span><br><span class="line">4. 1.8 的 resize 优化了算法, 保持了原有的链表顺序(不知道有啥用)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>总得来说, 1.8 优化了 hash 算法, 使 <code>hashcode</code> 的高 16 位与 低 16 位进行异或运算, 降低了碰撞率</p>
+<p>而 resize 算法也优化链表节点的迁移, 避免了 1.7 的链环产生</p>
+<p>最大的区别就是, 1.7 没有将二进制的神奇发挥到极致, 依然像普通 java 程序一般逻辑. 而 1.8 则充分利用了二进制的优点(也充分的让人头晕), 提高了 <code>HashMap</code> 的效率.</p>
+</blockquote>
+<h4 id="为什么-HashMap-从链表达到-8-个时转成红黑树-达到-6-个时转回链表"><a href="#为什么-HashMap-从链表达到-8-个时转成红黑树-达到-6-个时转回链表" class="headerlink" title="为什么 HashMap 从链表达到 8 个时转成红黑树, 达到 6 个时转回链表?"></a>为什么 <code>HashMap</code> 从链表达到 8 个时转成红黑树, 达到 6 个时转回链表?</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1.根据 Poisson distribution 定律, 凑齐8个节点碰撞到同一个下标, 组成长度为 8 的链表概率极低, 约为 0.00000006, 而超过 8 个的几率则更低, 大约为千万分之一. 所以将阈值设置为 8, 因为这种概率极低. 因此可以减少链表转红黑树的, 提高增删改效率.</span><br><span class="line">2.若达到 7 个时转回链表, 则可能会导致HashMap 不停的在链表和红黑树之间转换, 所以阈值设置为 6, 可起到缓冲效果.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="Spring"><a href="#Spring" class="headerlink" title="Spring"></a>Spring</h3><h4 id="关键类解析"><a href="#关键类解析" class="headerlink" title="关键类解析"></a>关键类解析</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">ApplicationContext</span><br><span class="line">	是一个只读的 bean 容器</span><br><span class="line">	可以加载解析配置文件(如xml)</span><br><span class="line">	可以发布事件和注册监听</span><br><span class="line">	具有国际化消息处理能力</span><br><span class="line">ConfigurableApplicationContext</span><br><span class="line">	是一个具有可配置能力的 容器(可设置各个参数, 如id, 父容器)</span><br><span class="line">	具有容器生命周期概念, 如启动,停止,关闭.</span><br><span class="line">AbstractApplicationContext</span><br><span class="line">	模板方法模式的抽象类, 定义了容器的模板(refresh方法), 但由具体的子类实现部分方法</span><br><span class="line">	管理Bean和BeanFactory的PostProcessor</span><br><span class="line">	管理事件的监听和处理</span><br><span class="line">AbstractRefreshableApplicationContext</span><br><span class="line">	为可重复刷新的容器提供基类</span><br><span class="line">	加入了BeanFactory的管理(创建&#x2F;关闭等)</span><br><span class="line">AbstractRefreshableConfigApplicationContext</span><br><span class="line">	加入了configLocation字段, 用于某些容器初始化BeanFactory和Bean</span><br><span class="line">AbstractXmlApplicationContext</span><br><span class="line">	定义了读取xml配置文件来加载BeanFactory的代码, 使得子类只需提供配置文件地址或Resource</span><br><span class="line">ClassPathXmlApplicationContext</span><br><span class="line">	继承基类, 提供配置文件地址的构造方法, 调用refresh加载BeanFactory</span><br><span class="line">						</span><br><span class="line">BeanFactoryPostProcessor</span><br><span class="line">	用于给BeanFactory添加插件式功能, 如配置文件解析 $&#123;&#125; 占位符</span><br><span class="line">	如ConfigurationClassPostProcessor 将@Configuration类下的带@Bean的method返回值注册到beanDefinitions 中</span><br><span class="line"></span><br><span class="line">BeanPostProcessor</span><br><span class="line">	用于给bean添加功能, 如ApplicationContextAware的自动注入就是如此实现的</span><br></pre></td></tr></table></figure>
+
+<h4 id="容器初始化流程"><a href="#容器初始化流程" class="headerlink" title="容器初始化流程"></a>容器初始化流程</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">1) 从XmlClassPathApplicationContext构造方法中进入 refresh 方法</span><br><span class="line">2) 先设置容器状态</span><br><span class="line">3) 调用子类初始化 BeanFactory</span><br><span class="line">4) 设置BeanFactory 一些属性,添加一些内置的PostProcessor 注册一些 environment 相关的bean</span><br><span class="line">5) 子类设置一些内置的PostProcessor</span><br><span class="line">6) 扫描添加并执行容器内的 BeanFactoryPostProcessor</span><br><span class="line">7) 扫描容器内的 BeanPostProcessor 并注册</span><br><span class="line">8) 初始化国际化消息处理器</span><br><span class="line">9) 初始化事件广播处理器</span><br><span class="line">10) 执行子类的 refresh 逻辑</span><br><span class="line">11) 扫描容器内的 ApplicationEvent (指实现类) 并注册到事件广播处理器</span><br><span class="line">12) 完成BeanFactory的初始化, 并加载一些单例对象(设置了急于加载的bean)</span><br><span class="line">13) 初始化LifcycleProcessor, 调用onRefresh方法, 发布 ContextRefreshedEvent 事件.</span><br><span class="line">14) 清除一些缓存(如反射缓存, 注解等)</span><br></pre></td></tr></table></figure>
+
+<h4 id="某些实现原理"><a href="#某些实现原理" class="headerlink" title="某些实现原理"></a>某些实现原理</h4><h5 id="实现-ApplicationContextAware-为何会自动注入-applicationContext"><a href="#实现-ApplicationContextAware-为何会自动注入-applicationContext" class="headerlink" title="实现 ApplicationContextAware 为何会自动注入 applicationContext?"></a>实现 <code>ApplicationContextAware</code> 为何会自动注入 <code>applicationContext</code>?</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1) 首先 AbstractApplicationContext#prepareBeanFactory 会添加一个ApplicationContextAwareProcessor</span><br><span class="line"><span class="number">2</span>) 这个 beanPostProcessor 负责在bean初始化之前注入context对象.</span><br><span class="line"><span class="number">3</span>) 这个 beanPostProcessor 的执行时机是在 doCreateBean 中的 postProcessBeforeInitialization()</span><br></pre></td></tr></table></figure>
+
+<h5 id="实现-ApplicationListener-为何会在事件触发时自动执行我们实现的方法"><a href="#实现-ApplicationListener-为何会在事件触发时自动执行我们实现的方法" class="headerlink" title="实现 ApplicationListener 为何会在事件触发时自动执行我们实现的方法?"></a>实现 <code>ApplicationListener</code> 为何会在事件触发时自动执行我们实现的方法?</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1) 在 AbstractApplicationContext#registerListeners() 中扫描容器内所有相关实现类加入到事件监听者集合中</span><br><span class="line"><span class="number">2</span>) 然后在publishEvent时，遍历事件监听者集合调用bean的方法即可。观察者模式！</span><br><span class="line"><span class="number">3</span>) 另外也用了BeanPostProcessor去实现, 叫 ApplicationListenerDetector, 加入时机同<span class="number">1</span>, 执行时机同<span class="number">1</span>.</span><br><span class="line"><span class="number">4</span>) 至于为何使用<span class="number">2</span>种机制，与多例有关吧！(scope=<span class="string">"prototype"</span>)</span><br></pre></td></tr></table></figure>
+
+<h5 id="实现Order接口或注解时如何自动排序的"><a href="#实现Order接口或注解时如何自动排序的" class="headerlink" title="实现Order接口或注解时如何自动排序的?"></a>实现<code>Order</code>接口或注解时如何自动排序的?</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1) 比如说 BeanPostProcesser, 容器扫描后, 会像对bean集合排序, 再遍历执行.</span><br><span class="line">2) 详细过程见 PostProcessorRegistrationDelegate<span class="comment">#sortPostProcessors()</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="单例对象如何实现循环依赖注入？"><a href="#单例对象如何实现循环依赖注入？" class="headerlink" title="单例对象如何实现循环依赖注入？"></a>单例对象如何实现循环依赖注入？</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">1) 首先， 设定对象A，B， A 持有 B, B 持有A， 构成循环</span><br><span class="line">2) 此时程序调用getBean获取A，则在 doCreateBean 中 创建后将bean缓存到 singletonFactories 中</span><br><span class="line">3) 然后设置属性B, 解析属性, 需要获取B对象</span><br><span class="line">4) 获取B, 则执行doCreateBean 后执行解析属性, 需要获取 A对象 (又一次)</span><br><span class="line">5) 获取A, 进入 doGetBean 中的 getSingleton, 此时判断singletonFactories中有A, 则可以直接取出A</span><br><span class="line">6) 获得A后, 即可完成B的属性赋值, 然后会完成B的创建.</span><br><span class="line">7) B创建完后, A就能获得B, 则A也完成了属性赋值, 最后完成创建A.</span><br><span class="line">8) 到此, 返回即可.</span><br><span class="line"></span><br><span class="line">&gt; 总结: 首次获取A, 创建A对象后缓存一个存储A对象的 ObjectFactory 实例, 再解析属性时触发 getBean(B), 同理也会做缓存, 然后也解析属性, 触发getBean(A), 第二次获取A, 进入另一个逻辑, 返回 ObjectFactory 实例中存储的对象A, 即可完成getBean(A), 然后完成getBean(B), 再完成外层的getBean(A).</span><br></pre></td></tr></table></figure>
+
+<p>TIPS</p>
+<blockquote>
+<p>观察源码, 发现有2个缓存, 一个是 <code>singletonFactories</code>, 另一个是 <code>earlySingletonObjects</code>.<br>其中<code>earlySingletonObjects</code>的管理都在 <code>getSingleton</code> 方法中做, 而 <code>singletonFactories</code> 则在<code>doCreateBean</code>中加入, 在 <code>getSingleton</code> 中删除(有<code>earlySingletonObjects</code>后就可以删除了).<br>虽然有2个缓存, 但如果你的bean没有使用<code>BeanFactory</code>创建, 则其实一个缓存也足够了<br>(因为这样的话 <code>singletonFactories</code> 每次创建返回的都是同一个, 因为此时 <code>singletonFactories</code>存的只是代码包装的一个内部类, 而非用户自定义的.)</p>
+</blockquote>
+<h5 id="InstantiationAwareBeanPostProcessor等一些特殊BeanProcessor的扩展方法是何时自动调用的"><a href="#InstantiationAwareBeanPostProcessor等一些特殊BeanProcessor的扩展方法是何时自动调用的" class="headerlink" title="InstantiationAwareBeanPostProcessor等一些特殊BeanProcessor的扩展方法是何时自动调用的?"></a><code>InstantiationAwareBeanPostProcessor</code>等一些特殊<code>BeanProcessor</code>的扩展方法是何时自动调用的?</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 首先 getBeanPostProcessorCache 获取一些特殊的BeanPostProcessor</span><br><span class="line"><span class="number">2</span>) 如 InstantiationAwareBeanPostProcessor/SmartInstantiationAwareBeanPostProcessor</span><br><span class="line"><span class="number">3</span>) 然后 createBean时, 会在正确的时机使用到这些特殊的 PostProcessor, 取出来, 然后执行对应方法</span><br><span class="line"><span class="number">4</span>) 具体何时可以查看 getBeanPostProcessorCache() 的调用位置一一查看.</span><br></pre></td></tr></table></figure>
+
+<h4 id="注解的实现"><a href="#注解的实现" class="headerlink" title="注解的实现"></a>注解的实现</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 首先是指定包名或指定类名</span><br><span class="line">	如指定包名则scan时会执行, 如指定类名则在构造方法初始化 reader 时执行</span><br><span class="line">2) 无论哪种, 最终都会走一段代码 AnnotationConfigUtils#registerAnnotationConfigProcessors()</span><br><span class="line"><span class="number">3</span>) 这段代码会添加一些 BeanFactoryPostProcessor</span><br><span class="line">	如 ConfigurationClassPostProcessor 负责解析 <span class="meta">@Configuration</span>/<span class="meta">@Import</span>/<span class="meta">@Bean</span> 注解</span><br><span class="line">    	postProcessBeanDefinitionRegistry() 中 parse 所有的带以上注解的 beanDefinitions</span><br><span class="line">    	ConfigurationClassParser 将注解信息解析保存，</span><br><span class="line">    	然后由 ConfigurationClassBeanDefinitionReader 负责注册到容器。</span><br><span class="line">	如 AutowiredAnnotationBeanPostProcessor 负责解析 <span class="meta">@Autowired</span>/<span class="meta">@Value</span> 注解</span><br><span class="line">    如 CommonAnnotationBeanPostProcessor 负责解析 <span class="meta">@Resource</span> 注解</span><br><span class="line">    解析放在 postProcessProperties() 方法中， 先扫描bean的字段和方法， 然后一一调用方法和为字段注入值</span><br><span class="line"><span class="number">4</span>) 之后, 他会将扫描的类放到 beanDefinitions 中(或指定的类注册进去)</span><br><span class="line"><span class="number">5</span>) BeanFactory加载完毕后, 回到AbstractApplicationContext的refresh逻辑</span><br><span class="line">	如会执行 postProcessBeanFactory(), 调用前面加入的ConfigurationClassPostProcessor</span><br><span class="line">	然后会添加更多的类到容器中.</span><br><span class="line">    </span><br><span class="line">注意事项：</span><br><span class="line">    <span class="meta">@Configuration</span> 和 <span class="meta">@Component</span>的区别？</span><br><span class="line">    观察发现，即使使用<span class="meta">@Component</span> 其下带 <span class="meta">@Bean</span> 的方法依然可以注入到容器中。所以似乎两者没有区别？</span><br><span class="line">    仔细查看源码和资料后，发现 postProcessBeanFactory() 方法在 processConfigBeanDefinitions() 后还会调用 enhanceConfigurationClasses()</span><br><span class="line">    而在这个方法中, 对前面解析了<span class="class"><span class="keyword">class</span> 是 <span class="title">CONFIGURATION_CLASS_FULL</span> (即代表@<span class="title">Configuration</span>)的类</span></span><br><span class="line"><span class="class">    会生成一个 <span class="title">cglib</span> 的代理, 这样获取@<span class="title">Bean</span>注解的方法的<span class="title">bean</span>时,不会每次调用方法<span class="title">new</span> 一个, 而是有缓存.</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="AOP-流程"><a href="#AOP-流程" class="headerlink" title="AOP 流程"></a>AOP 流程</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 使用 <span class="meta">@EnableAspectJAutoProxy</span></span><br><span class="line"><span class="number">2</span>) <span class="meta">@EnableAspectJAutoProxy</span> 中使用了 <span class="meta">@Import</span>(AspectJAutoProxyRegistrar<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">3) <span class="title">ConfigurationClassPostProcessor</span> 会解析@<span class="title">Import</span>, 进入 <span class="title">registerBeanDefinitions</span>() 中</span></span><br><span class="line"><span class="class">4) <span class="title">registerBeanDefinitions</span>() 中添加了 <span class="title">AnnotationAwareAspectJAutoProxyCreator</span> 到容器中</span></span><br><span class="line"><span class="class">5) <span class="title">AnnotationAwareAspectJAutoProxyCreator</span> 本质上时一个 <span class="title">BeanPostProcessor</span></span></span><br><span class="line"><span class="class">6) 因此在 <span class="title">createBean</span> 时, 会被自动调用. 其中 <span class="title">postProcessAfterInitialization</span>() 负责创建代理对象</span></span><br><span class="line"><span class="class">7) 而 <span class="title">getAdvicesAndAdvisorsForBean</span>() 则负责查找对应的增强. 然后会调用子类的<span class="title">findCandidateAdvisors</span></span></span><br><span class="line"><span class="class">8) 如 <span class="title">AnnotationAwareAspectJAutoProxyCreator</span>#<span class="title">findCandidateAdvisors</span>() 负责注解编写增强@<span class="title">Before</span>/@<span class="title">After</span>等</span></span><br><span class="line"><span class="class">9) 简单说下逻辑, 就是查找容器所有类, 判断这个类有没有 @<span class="title">Aspect</span> 注解, 然后先找出所有<span class="title">Pointcut</span></span></span><br><span class="line"><span class="class">	再遍历所有方法, 找出方法上带有@<span class="title">Before</span>等注解且有关联的<span class="title">Pointcut</span>的方法,</span></span><br><span class="line"><span class="class">    然后使用这个方法和关联的<span class="title">Pointcut</span> 来<span class="title">new</span> 一个<span class="title">Advisor</span>, 加入到<span class="title">Advisor</span>集合中, 遍历结束后返回即可.</span></span><br><span class="line"><span class="class">10) 查找到所有的增强后, 再比较<span class="title">Pointcut</span>表达式是否匹配当前的<span class="title">bean</span>, 如可以则加入.</span></span><br><span class="line"><span class="class">11) 根据找到的<span class="title">Advisor</span>集合, 创建一个带配置(<span class="title">advisor</span>集合等)的代理对象, 代理对象执行方法前</span></span><br><span class="line"><span class="class">12) 会先根据配置中的<span class="title">advisor</span>集合生成一个执行链, 然后在拦截代理方法处调用. 执行链会负责执行通知.</span></span><br><span class="line"><span class="class">13) 不同的通知由不同的适配器执行.</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="Spring-事务实现"><a href="#Spring-事务实现" class="headerlink" title="Spring 事务实现"></a>Spring 事务实现</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0</span>) 事务是由AOP实现的, 所以需要找到对应的Pointcut 和 Advisor</span><br><span class="line"><span class="number">1</span>) 打开了 <span class="meta">@EnableTransactionManagement</span> 注解</span><br><span class="line"><span class="number">2</span>) 然后<span class="meta">@Import</span> 了 TransactionManagementConfigurationSelector</span><br><span class="line"><span class="number">3</span>) 之后导入了 ProxyTransactionManagementConfiguration 到容器中</span><br><span class="line"><span class="number">4</span>) ProxyTransactionManagementConfiguration 带有 <span class="meta">@Configuration</span></span><br><span class="line"><span class="number">5</span>) <span class="meta">@Bean</span> 注入了一个通用的Advisor: BeanFactoryTransactionAttributeSourceAdvisor</span><br><span class="line"><span class="number">6</span>) 这个Advisor的 Pointcut 是由 TransactionAttributeSourcePointcut 实现的</span><br><span class="line">	实现逻辑是 TransactionAttributeSourcePointcut 的 matches()</span><br><span class="line">    这个方法调用了 getTransactionAttributeSource() 获取 AnnotationTransactionAttributeSource</span><br><span class="line">    然后通过 getTransactionAttribute() 调用了 findTransactionAttribute()</span><br><span class="line">    最终使用SpringTransactionAnnotationParser 类判断方法是否有<span class="meta">@Transactional</span>注解</span><br><span class="line">    并解析注解信息然后返回. 另外这个方法还可以获取<span class="meta">@Transactional</span>注解的信息, 而这里只用于判断是否需要拦截这个方法.</span><br><span class="line"><span class="number">7</span>) TransactionInterceptor 是一个Advisor</span><br><span class="line">    也可以通过AnnotationTransactionAttributeSource获取<span class="meta">@Transactional</span>注解上的信息</span><br><span class="line">    然后在invoke中, 拦截方法, 打开事务, 在执行完方法后, 提交事务, 报错时回滚事务</span><br><span class="line">    这个 Advisor 不同于传统的前置/后置, 而是更具体的 MethodInterceptor.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="Spring-Boot-源码"><a href="#Spring-Boot-源码" class="headerlink" title="Spring Boot 源码"></a>Spring Boot 源码</h3><h4 id="简化了多少操作？"><a href="#简化了多少操作？" class="headerlink" title="简化了多少操作？"></a>简化了多少操作？</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>.MultipartAutoConfiguration</span><br><span class="line">	添加了一个bean StandardServletMultipartResolver, 并设置上传文件大小等属性</span><br><span class="line">	使得Spring MVC中的 DispatcherServlet 可以获取 multipartResolver, 处理文件上传.</span><br><span class="line">    若不是Spring Boot, 需要在xml或注解中手动添加一个 这样的bean才能处理文件上传, 而且配置文件还要自己读取.</span><br><span class="line"></span><br><span class="line"><span class="number">2</span>.MailSenderAutoConfiguration</span><br><span class="line">    添加了一个 JavaMailSenderImpl 的bean到容器中, 并设置邮箱服务器/账号/密码等属性</span><br><span class="line">    若不是Spring Boot, 需要在xml中配置一个bean即配置他的属性(邮箱配置)</span><br><span class="line"></span><br><span class="line"><span class="number">3</span>.TransactionAutoConfiguration</span><br><span class="line">    在内部类添加 <span class="meta">@EnableTransactionManagement</span>，剩下的参考上面的 Spring 事务实现</span><br><span class="line">    </span><br><span class="line"><span class="number">4</span>.WebMvcAutoConfiguration</span><br><span class="line">    添加了 RequestMappingHandlerAdapter/RequestMappingHandlerMapping</span><br><span class="line">    添加了 ContentNegotiatingViewResolver</span><br></pre></td></tr></table></figure>
+
+<h4 id="启动流程"><a href="#启动流程" class="headerlink" title="启动流程"></a>启动流程</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 创建 SpringApplicationRunListeners 管理 run 过程的事件, 监听者取自 spring.factories</span><br><span class="line"><span class="number">2</span>) 触发 run 的开始(starting)事件</span><br><span class="line"><span class="number">3</span>) 初始化 environment 对象, 并利用 run 的 environmentPrepared 事件将application.yml的数据注入</span><br><span class="line"><span class="number">4</span>) 打印 Banner, 可自定义 Banner 通过 banner.txt 文件</span><br><span class="line"><span class="number">5</span>) 根据webApplicationType创建一个ApplicationContext 容器</span><br><span class="line">    默认使用 AnnotationConfigApplicationContext</span><br><span class="line"><span class="number">6</span>) 为 context 做一些初始化和设置</span><br><span class="line">    设置环境变量， 使得 context 可以获取 application.yml 中的配置</span><br><span class="line">    调用子类扩展的设置</span><br><span class="line">    加载 容器的 initializers</span><br><span class="line">    触发 run 的 contextPrepared 事件</span><br><span class="line">    打印日志</span><br><span class="line">    添加spring boot 启动参数信息到 bean 容器中</span><br><span class="line">    设置beanFactory的 allowBeanDefinitionOverriding 属性</span><br><span class="line">    设置 懒加载策略， 添加 postProcessor 则会将每个 beanDefinition 的 lazyInit 设置为 <span class="keyword">true</span></span><br><span class="line">    把启动类<span class="class"><span class="keyword">class</span>封装成 <span class="title">BeanDefinition</span> 放到容器中, 使得@<span class="title">Configuration</span>之类的注解生效</span></span><br><span class="line"><span class="class">    触发 <span class="title">run</span> 的 <span class="title">contextLoaded</span> 事件</span></span><br><span class="line"><span class="class">7) 调用 <span class="title">context</span> 的 <span class="title">refresh</span>()</span></span><br><span class="line"><span class="class">    执行 <span class="title">BeanFactoryPostProcessor</span>, 如 <span class="title">ConfigurationClassPostProcessor</span> 解析 @<span class="title">Import</span> 注解</span></span><br><span class="line"><span class="class">    @<span class="title">Import</span> 会实现 @<span class="title">EnableAutoConfiguration</span>, 总之都是熟悉的 <span class="title">spring</span> 套路. <span class="title">boot</span>的东西就少了.</span></span><br><span class="line"><span class="class">8) 调用留给子类的 <span class="title">afterRefresh</span>() 方法, 默认空实现</span></span><br><span class="line"><span class="class">9) 打印启动完毕信息</span></span><br><span class="line"><span class="class">10) 触发 <span class="title">run</span> 的 <span class="title">started</span> 事件</span></span><br><span class="line"><span class="class">11) 调用 容器内所有的 <span class="title">ApplicationRunner</span> 和 <span class="title">CommandLineRunner</span> 实现类, 类似事件监听.</span></span><br><span class="line"><span class="class">12) 使用 <span class="title">spring</span>.<span class="title">factories</span> 中的 <span class="title">exceptionReporters</span> 处理可能出现的异常.</span></span><br><span class="line"><span class="class">13) 触发 <span class="title">run</span> 的 <span class="title">running</span> 事件</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="一些东西的实现原理"><a href="#一些东西的实现原理" class="headerlink" title="一些东西的实现原理"></a>一些东西的实现原理</h4><h5 id="ConfigurationProperties-如何实现自动注入application-properties中配置的值"><a href="#ConfigurationProperties-如何实现自动注入application-properties中配置的值" class="headerlink" title="@ConfigurationProperties 如何实现自动注入application.properties中配置的值?"></a><code>@ConfigurationProperties</code> 如何实现自动注入<code>application.properties</code>中配置的值?</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 首先加了 <span class="meta">@EnableConfigurationProperties</span> 也会解析里面的 <span class="meta">@Import</span> </span><br><span class="line"><span class="number">2</span>) <span class="meta">@Import</span> 则引入了 EnableConfigurationPropertiesRegistrar<span class="class">.<span class="keyword">class</span></span></span><br><span class="line"><span class="class">3) 这是一个 <span class="title">ImportBeanDefinitionRegistrar</span> 的实现类, 会在解析 @<span class="title">Configuration</span> 注解时调用指定方法</span></span><br><span class="line"><span class="class">4) 指定方法 <span class="title">registerBeanDefinitions</span>() 获取 @<span class="title">EnableConfigurationPropertiesRegistrar</span> 的数据</span></span><br><span class="line"><span class="class">    如 @<span class="title">EnableConfigurationProperties</span>(<span class="title">RabbitProperties</span>.<span class="title">class</span>) 加载 <span class="title">RabbitProperties</span>.<span class="title">class</span></span></span><br><span class="line"><span class="class">    然后, 将这些 <span class="title">class</span> 都注册到容器中</span></span><br><span class="line"><span class="class">5) 指定方法还注册了一些工具<span class="title">bean</span>和一个重要的 <span class="title">BeanPostProcessor</span> 在 <span class="title">registerInfrastructureBeans</span>()中</span></span><br><span class="line"><span class="class">6) <span class="title">registerInfrastructureBeans</span>() 加载了 <span class="title">ConfigurationPropertiesBindingPostProcessor</span>.<span class="title">class</span></span></span><br><span class="line"><span class="class">7) 在 <span class="title">postProcessorBeforeInitialization</span>() 中 调用 <span class="title">ConfigurationPropertiesBinder</span></span></span><br><span class="line"><span class="class">8) 调用链很长, 最后 <span class="title">property</span>.<span class="title">setValue</span>(<span class="title">beanSupplier</span>, <span class="title">bound</span>)</span>;设置了值 -- JavaBeanBinder</span><br><span class="line"></span><br><span class="line">总结: 就是先将 XxxProperties 类定义注入到容器中, 这样可以getBean, 然后通过 BeanPostProcessor</span><br><span class="line">    再实例化后将属性值一一绑定.</span><br></pre></td></tr></table></figure>
+
+<h5 id="ConditionalXxx-的实现原理"><a href="#ConditionalXxx-的实现原理" class="headerlink" title="@ConditionalXxx 的实现原理"></a><code>@ConditionalXxx</code> 的实现原理</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 在类上加上注解 <span class="meta">@Conditional</span> 或 带有 <span class="meta">@Conditional</span> 的其他注解:其他扩展实现</span><br><span class="line"><span class="number">2</span>) 在所有的扫描类和注解的地方,如解析<span class="meta">@Configuration</span>, AnotatedBeanDefinitionReader等reader</span><br><span class="line">    会使用 ConditionEvaluator 的 shouldSkip() 判断是否可以加载, 时机点如下</span><br><span class="line">    AnnotatedBeanDefinitionReader#doRegisterBean() 的第二行代码</span><br><span class="line">    ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod() 第四行</span><br><span class="line">    ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForConfigurationClass()</span><br><span class="line">    ConfigurationClassParser#doProcessConfigurationClass() 处理 ComponentScan 那段</span><br><span class="line"><span class="number">3</span>) 然后再 shouldSkip 中判断， 判断逻辑大致如下：</span><br><span class="line">    先遍历所有注解取得所有的 <span class="meta">@Conditional</span> 下的 所有 value, 这个 value 是具体的Condition实现, 如OnClassCondition</span><br><span class="line">    实例化 Condition 然后添加到 conditions中</span><br><span class="line">    排序并遍历调用 matches(), 一个不匹配则返回<span class="keyword">true</span>, 代表应该跳过.</span><br><span class="line"></span><br><span class="line">TIPS:</span><br><span class="line">ConditionOutcome 封装了是否匹配和匹配日志信息[为啥成功/为啥失败]</span><br><span class="line">SpringBootCondition 提供了通用的根据 ConditionOutcome 判断是否匹配并记录日志信息的抽象类.</span><br><span class="line">    子类只需实现 getMatchOutcome(): 根据 metadata[注解信息] 返回 ConditionOutcome 对象.</span><br><span class="line">    因此, 如果我们要实现自己的 Condition, 可以继承它.</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>另发现 <code>AutoConfigurationImportSelector</code> 也含有判断Condition的逻辑,<br>刚开始以为是 <code>AutoConfiguration</code> 的类没有走之前说到的判断, 所以这里要做判断.<br>后来我一想, 这是 @Import 引入的, 所以, 是走了判断的. 因此这里多出的一个 <code>AutoConfigurationImportFilter</code>, 应该是一个额外的插件, 专门过滤配置在 <code>spring.factories</code> 中的 <code>AutoConfiguration</code> 类的. 而插件的读取, 也是读取 <code>spring.factories</code> 来遍历. </p>
+</blockquote>
+<h5 id="AutoConfigureAfter-的实现原理"><a href="#AutoConfigureAfter-的实现原理" class="headerlink" title="@AutoConfigureAfter  的实现原理"></a><code>@AutoConfigureAfter</code>  的实现原理</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) 首先 AutoConfigurationImportSelector 是一个 DeferredImportSelector  </span><br><span class="line"><span class="number">2</span>) 这种 DeferredImportSelector 会延迟加载, 原理是 parse 后再加载, 而非parse执行过程中就加载.</span><br><span class="line"><span class="number">3</span>) 延迟加载机制 会先调用 process 方法, 将要加载的<span class="class"><span class="keyword">class</span>保存起来, 然后再调用 <span class="title">selectImports</span> 返回.</span></span><br><span class="line"><span class="class">4) 此时 <span class="title">AutoConfigurationImportSelector</span>.<span class="title">AutoConfigurationGroup</span> 的 <span class="title">selectImports</span>() 会调用 <span class="title">sortAutoConfigurations</span>(), 也就是调用了 <span class="title">AutoConfigurationSorter</span>.<span class="title">getInPriorityOrder</span>()</span></span><br><span class="line"><span class="class">5) <span class="title">getInPriorityOrder</span>() 调用了 <span class="title">sortByAnnotation</span>() 这个方法根据2个注解 @<span class="title">AutoConfigureBefore</span> @<span class="title">AutoConfigureAfter</span> 排序.</span></span><br><span class="line"><span class="class">6) 最后返回的就是有序的了. 另外, 这两个注解只能作用再 <span class="title">AutoConfiguration</span> 上.</span></span><br><span class="line"><span class="class"></span></span><br><span class="line">总结:</span><br><span class="line">所有的 AutoConfiguration 所引入的<span class="class"><span class="keyword">class</span>文件解析完毕后, 再准备加载之前, 进行排序, 然后一一加载.</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h5 id="各种-AutoConfiguration-实现大致流程"><a href="#各种-AutoConfiguration-实现大致流程" class="headerlink" title="各种 AutoConfiguration 实现大致流程."></a>各种 <code>AutoConfiguration</code> 实现大致流程.</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">1) 首先是 @SpringBootApplication 启用了 @EnableAutoConfiguration</span><br><span class="line">2) @EnableAutoConfiguration 又使用 @Import 导入了 AutoConfigurationImportSelector.class</span><br><span class="line">3) 然后 AutoConfigurationImportSelector 导入 spring.factories所有的 EnableAutoConfiguration</span><br><span class="line">4) 最后，当一个项目依赖一个starter-xxx，会继承starter的依赖项, spring-boot-autoconfigure 由此被依赖</span><br><span class="line">5) spring-boot-autoconfigure 带有所有 boot 实现的 AutoConfiguration 和 spring.factories 配置</span><br><span class="line">6) 所以会加载该项目下 spirng.factories 中定义的 EnableAutoConfiguration</span><br><span class="line">7) 每个 AutoConfiguration 实现类被导入到容器中后</span><br><span class="line">	又被 ConfigurationClassPostProcessor 解析@Configuration, @Import 等注解 (老千层饼了)</span><br><span class="line">	这些AutoConfiguration会添加一些提供服务的 bean，或者再嵌套一层@Import，@Configuration等。</span><br><span class="line">	另外, 这些bean还是被自动配置了属性值的, 属性值哪里来? 都在 application.yml 中, 或是默认配置中.</span><br><span class="line">9) 这样，容器中就加入了一个或多个配置好的bean了, 可以直接使用. 如 stringRedisTemplate, jdbcTemplate</span><br></pre></td></tr></table></figure>
+
+<h5 id="Spring-Boot-是如何自动扫描main方法所在类所在包的"><a href="#Spring-Boot-是如何自动扫描main方法所在类所在包的" class="headerlink" title="Spring Boot 是如何自动扫描main方法所在类所在包的?"></a>Spring Boot 是如何自动扫描main方法所在类所在包的?</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1) 首先是 @SpringBootApplication 启用了 @EnableAutoConfiguration</span><br><span class="line">2) @EnableAutoConfiguration 又使用 @AutoConfigurationPackage</span><br><span class="line">3) @AutoConfigurationPackage 中的 @Import 会被解析, Registrar.class 的registerBeanDefinitions会被执行</span><br><span class="line">4) 最终根据带有 @SpringBootApplication 的类对应的包名, 然后自动扫描到容器中, 效果同 @ComponentScan</span><br></pre></td></tr></table></figure>
+
+<h5 id="application-properties-是如何被加载到Environment中的"><a href="#application-properties-是如何被加载到Environment中的" class="headerlink" title="application.properties 是如何被加载到Environment中的?"></a><code>application.properties</code> 是如何被加载到Environment中的?</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) run方法中创建了Environment对象, 当初始化好一些东西后会触发事件</span><br><span class="line"><span class="number">2</span>) 通过 SpringApplicationRunListeners 的 environmentPrepared() 告知监听者</span><br><span class="line"><span class="number">3</span>) 默认存在 spring.factories 中的 EventPublishingRunListener 监听者负责转发事件</span><br><span class="line"><span class="number">4</span>) 事件被转发到 ApplicationListener 下的监听者来处理</span><br><span class="line"><span class="number">5</span>) 监听者配置在 spring.factories 中, 其中 ConfigFileApplicationListener 监听了此事件</span><br><span class="line"><span class="number">6</span>) 此监听者接受 ApplicationEnvironmentPreparedEvent 事件后</span><br><span class="line"><span class="number">7</span>) 加载一些 postProcessor 专门用于处理 environment 对象的 postProcessor</span><br><span class="line"><span class="number">8</span>) 其他的 postProcessor 暂时不管, 真正做了加载的是 postProcessors.add(<span class="keyword">this</span>); 自己的实现</span><br><span class="line"><span class="number">9</span>) 自己的处理方法是: addPropertySources(), 此方法将会扫描指定的路径下指定的某些文件</span><br><span class="line"><span class="number">10</span>) 然后使用 spring.factories 下的 PropertySourceLoader 一一尝试解析</span><br><span class="line"><span class="number">11</span>) 文件存在且解析正确则加入到 environment 的 propertySources.</span><br><span class="line">	某些路径: getSearchLocations() ,默认: classpath:/,classpath:/config/ ...</span><br><span class="line">	某些文件: getSearchNames() ,默认: application</span><br><span class="line"></span><br><span class="line">TIPS: </span><br><span class="line">PropertySourceLoader 有 PropertiesPropertySourceLoader/YamlPropertySourceLoader</span><br><span class="line">一个尝试后缀有 xml/properties, 另一个是 yml/yaml, 所以所有可能性有:</span><br><span class="line">    classpath:/application.xml; classpath:/application.properties</span><br><span class="line">	classpath:/application.yml; classpath:/application.yaml</span><br><span class="line">    ......</span><br></pre></td></tr></table></figure>
+
+<h5 id="SpringApplication-run-如何加载-tomcat-的"><a href="#SpringApplication-run-如何加载-tomcat-的" class="headerlink" title="SpringApplication.run() 如何加载 tomcat 的?"></a><code>SpringApplication.run()</code> 如何加载 tomcat 的?</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>) boot 的 run 里面会创建 applicationContext, 如是 webApplicationType = SERVLET, 则实现类为 AnnotationConfigServletWebServerApplicationContext</span><br><span class="line">    另外一提, webApplicationType 是根据 classpath 下是否有哪些类来推断的.</span><br><span class="line"><span class="number">2</span>) 这个类继承了 ServletWebServerApplicationContext</span><br><span class="line"><span class="number">3</span>) ServletWebServerApplicationContext 实现了 onRefresh()</span><br><span class="line"><span class="number">4</span>) onRefresh() 调用了 createWebServer()</span><br><span class="line"><span class="number">5</span>) createWebServer() 使用 ServletWebServerFactory.getWebServer() 获取 webServer 对象</span><br><span class="line"><span class="number">6</span>) ServletWebServerFactory 会被 ServletWebServerFactoryAutoConfiguration 引入</span><br><span class="line">    详细见 ServletWebServerFactoryConfiguration.EmbeddedTomcat<span class="class">.<span class="keyword">class</span></span></span><br><span class="line"><span class="class">7) 引入后调用 <span class="title">getWebServer</span>(), 大概为 <span class="title">new</span> <span class="title">Tomcat</span>(), 设置属性, 然后启动.</span></span><br><span class="line"><span class="class">8) 至此, <span class="title">run</span>() 启动了 <span class="title">tomcat</span> 或 <span class="title">jetty</span>/<span class="title">undertow</span>.</span></span><br><span class="line"><span class="class"> </span></span><br><span class="line">TIPS:</span><br><span class="line">spring 使用工厂模式获取webServer, 然后工厂又通过AutoConfiguration自动注入(还会判断Condition).</span><br><span class="line">    这样如果新增一种 webServer, 只需要在写一个 AutoConfiguration 注入一个 工厂即可. 非常灵活.</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="Spring-Boot-监听"><a href="#Spring-Boot-监听" class="headerlink" title="Spring Boot 监听"></a>Spring Boot 监听</h4><blockquote>
+<p>Spring Boot run方法中初始化了一个事件管理器, 用于在boot的每个生命周期触发不同的事件, 这些事件可以有很多监听者, 这些监听者都从 <code>spring.factories</code> 中取得.<br>但是, spring 默认只加了一个监听者, 即 <code>EventPublishingRunListener</code><br>虽然只有一个, 但他的作用可不小, 他承上启下, 将boot的事件转发给所有的 <code>ApplicationListener</code> 的监听者.<br>也就是说, 之前spring就存在的体系可以直接复用, 但又没有直接生搬硬套, 而是通过 <code>EventPublishingRunListener</code> 做一个中转, 将 boot 的事件转发出去. 使得配置的监听者 <code>ApplicationListener</code>也能接受 boot 事件并处理. 如 <code>ConfigFileApplicationListener</code>.</p>
+<p>spring boot 这么做, 使得 添加到 <code>spring.factories</code> 中的类, 可以同时监听boot的run产生的事件和context的生命周期.</p>
+<p>严格说, <code>EventPublishingRunListener</code> 这样的监听者, 监听的并不是通用的事件, 而是 boot run 产生的特定事件<br>所以 <code>EventPublishingRunListener</code> 将特定事件封装成统一的 <code>ApplicationEvent</code>, 然后广播出去.</p>
+<p>另外，spring boot 是在 <code>EventPublishingRunListener#contextLoaded</code> 中将 <code>spring.factories</code> 中的 listens 注入到 <code>ApplicationContext</code> 中的。</p>
+<p>总结: 我监听你监听的监听!</p>
+</blockquote>
+<h3 id="Spring-MVC-源码"><a href="#Spring-MVC-源码" class="headerlink" title="Spring MVC 源码"></a>Spring MVC 源码</h3><h4 id="关键类解析-1"><a href="#关键类解析-1" class="headerlink" title="关键类解析"></a>关键类解析</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">WebMvcConfigurationSupport</span><br><span class="line">	默认注册了很多东西,如HandlerMapping几个实现, HandlerAdaptor几个实现</span><br><span class="line"></span><br><span class="line">HandlerMapping</span><br><span class="line">	添加容器内所有带有RequestMaping的类的公开方法到 mappings 中</span><br><span class="line">		(AbstractHandlerMethodMapping#afterPropertiesSet中)</span><br><span class="line">    根据request的uri查找对应的HandlerMethod, 步骤概述:</span><br><span class="line">    	把RequestMapping注解内的path作为key保持到一个map1</span><br><span class="line">    	其他信息封装成mapping作为key也保持到另一个map2</span><br><span class="line">    	根据uri去 map1 获取 mapping, 再根据mapping 获取 HandlerMethod</span><br><span class="line">    	封装成Match对象, 与其他匹配对象做比较后, 返回 HandlerMethod</span><br><span class="line"></span><br><span class="line">HandlerAdapter</span><br><span class="line">	初始化参数解析，返回值解析等</span><br><span class="line">		(RequestMappingHandlerAdapter#afterPropertiesSet)</span><br><span class="line">	根据Handle确定对应的HandlerAdapter, 然后执行这个 handler</span><br><span class="line">    如RequestMappingHandlerAdapter 则负责执行 HandlerMethod</span><br><span class="line">    	简单说就是封装 HandlerMethod, 根据参数值设置参数, 然后调用方法, 再处理返回值封装成ModelAndView</span><br><span class="line">    另外， 这里如果使用了@ResponseBody，会进入 RequestResponseBodyMethodProcessor</span><br><span class="line">    	然后使用messageConverters（json）写入到响应流</span><br><span class="line">    	最后mv也直接返回null， 不需要render了。</span><br><span class="line"></span><br><span class="line">ViewResolver</span><br><span class="line">	负责将ModelAndView解析成HTML, 如JSP, FreeMarker</span><br><span class="line"></span><br><span class="line">HandlerExecutionChian</span><br><span class="line">	管理拦截器和封装Handler, 负责拦截器的实际调用逻辑实现</span><br><span class="line">	</span><br><span class="line">DispatcherServlet</span><br><span class="line">	调度整个HTTP请求响应流程, 调用各个子组件负责执行处理方法, 解析视图, 处理异常等.</span><br></pre></td></tr></table></figure>
+
+<h4 id="执行流程"><a href="#执行流程" class="headerlink" title="执行流程"></a>执行流程</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">GET</span><br><span class="line">HttpServlet#service()</span><br><span class="line">HttpServlet#doGet()</span><br><span class="line">FrameworkServlet#doGet()</span><br><span class="line">FrameworkServlet#processRequest()</span><br><span class="line">FrameworkServlet#doService()</span><br><span class="line">DispatcherServlet#doService()</span><br><span class="line">DispatcherServlet#doDispatch()</span><br><span class="line">	调用容器内所有的HandlerMapping的实现类的getHandler方法, 返回HandlerExecutionChain</span><br><span class="line">	调用容器内所有的HandlerAdaptor的实现类寻找适合的当前Hanlder的HandlerAdaptor</span><br><span class="line">	执行拦截器的 preHandle 方法, 并根据返回结果判断是否接续执行</span><br><span class="line">	HandlerAdaptor执行handle方法</span><br><span class="line">	进入RequestMappingHandlerAdaptor执行handle-&gt;handlerInternal-&gt;invokeHandlerMethod</span><br><span class="line">	生成ServletInvocableHandlerMethod(就是实现了反射调用方法和设置参数,处理返回值等操作)</span><br><span class="line">	调用invokeAndHandle--&gt;invokeForRequest</span><br><span class="line">		其中getMethodArgumentValues挨个调用HandlerMethodArgumentResolver获取参数值</span><br><span class="line">	然后执行 doInvoke, 利用反射技术调用 Method, method.invoke(obj, args);</span><br><span class="line">	执行完后, 返回结果, 回到 invokeAndHandle 调用 returnValueHandlers 处理返回结果</span><br><span class="line">	返回后 回到 invokeHandlerMethod, 调用 getModelAndView 获取通用的返回值(可能是空)</span><br><span class="line">	返回ModelAndView后, 回到doDispatch, 设置默认viewName (mv为空则不需要设置)</span><br><span class="line">	执行拦截器的 postHandle 方法</span><br><span class="line">	processDispatchResult 中的 render 解析视图后通过response 响应这个view</span><br><span class="line">	根据异常情况执行异常处理器, 以及执行拦截器的 afterCompletion 方法</span><br></pre></td></tr></table></figure>
+
+<h4 id="拦截器原理"><a href="#拦截器原理" class="headerlink" title="拦截器原理"></a>拦截器原理</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">何时加入?</span><br><span class="line">	从WebMvcConfigurationSupport的子类中调用addInterceptors </span><br><span class="line">	添加一些拦截器和拦截器的路径配置 InterceptorRegistry 和 MappedInterceptor</span><br><span class="line">    实现拦截器路径匹配, 在 new HandlerExecutionChian 时判断</span><br><span class="line"></span><br><span class="line">何时执行?</span><br><span class="line">	DispatcherServlet 负责在正确的时机调用 HandlerExecutionChian 来调用 preHanlde 等方法.</span><br><span class="line">	拿到 HandlerExecutionChian 后调用 preHanlde</span><br><span class="line">	HandlerAdapter执行完handler后, 调用 postHandle</span><br><span class="line">	解析视图并渲染到response之后, 调用 afterCompletion</span><br><span class="line">	如果中途出现异常, 或preHandle提前结束, 则也调用afterCompletion</span><br><span class="line"></span><br><span class="line">总结</span><br><span class="line">	DispatcherServlet 去调用 HandlerExecutionChian去调用 拦截器具体方法. </span><br><span class="line">	复杂点是添加一个拦截器到被加入到HandlerExecutionChian比较复杂一点, 以及带路径匹配的拦截器实现略复杂一些.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="Mybatis-源码"><a href="#Mybatis-源码" class="headerlink" title="Mybatis 源码"></a><code>Mybatis</code> 源码</h3><h4 id="关键类解析-2"><a href="#关键类解析-2" class="headerlink" title="关键类解析"></a>关键类解析</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">Configuration</span><br><span class="line">	作用: 解析和保存大配置(mybatis全局配置,如数据库连接, 别名等), 小配置(每个mapper文件)信息</span><br><span class="line"></span><br><span class="line">MapperProxy, MapperMethod</span><br><span class="line">	作用: 生成daoImpl代理对象和实现接口方法: 调用sqlSession 操作方法</span><br><span class="line"></span><br><span class="line">Executor</span><br><span class="line">	作用: 协调和管理StatementHandler, ParameterHandler, ResultSetHandler, 解析mapperStatement配置信息成BoundSql.</span><br><span class="line"></span><br><span class="line">StatementHandler</span><br><span class="line">	作用: 生成preparedStatment对象(JDBC的), 调用execute方法.</span><br><span class="line"></span><br><span class="line">ParameterHandler</span><br><span class="line">	作用: 管理并使用TypeHandler为preparedStatment对象设置参数,</span><br><span class="line"></span><br><span class="line">ResultSetHandler</span><br><span class="line">	作用: 将ResultSet结果集转成接口返回值认识的数据, 负责延迟加载.</span><br></pre></td></tr></table></figure>
+
+<h4 id="生命周期与执行流程"><a href="#生命周期与执行流程" class="headerlink" title="生命周期与执行流程"></a>生命周期与执行流程</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">1.读取配置文件, 解析xml(或properties)获得配置信息(数据库配置和mapperSql等) Configuration</span><br><span class="line">2.获取数据库连接, 开启事务, 准备执行sql (openSession)</span><br><span class="line">3.使用动态代理技术生成代理类</span><br><span class="line">4.代理类根据代理方法对应的mapperStatement类型调用sqlSession的insert,update,delete,selectXxx方法 (MapperProxy, MapperMethod)</span><br><span class="line">4.sqlSession调用Executor执行sql (Exector, SimpleExecutor, CachingExecutor)</span><br><span class="line">5.Executor 生成StatementHandler对象并解析xml中sql参数, 再使用ParameterHandler设置参数. (BaseExecutor, StatmentHandler, ParameterHandler, TypeHandler 前三个可被插件拦截任意方法)</span><br><span class="line">6.最后使用OGNL表达式解析库对 if,foreach,where等标签解析生成最总sql (ONGL)</span><br><span class="line">7.执行sql后获得resultSet, 使用 ResultSetHandler 处理后返回结果(resultMap, resultType的处理在这里) (ResultSetHandler 可被插件拦截任意方法)</span><br><span class="line">8.根据事务配置提交事务(自动提交), 保存一级缓存</span><br><span class="line">9.如开启二级缓存, Executor还会被装饰器模式包装一层, 将结果缓存到MapperStatement的cache变量中.</span><br><span class="line"></span><br><span class="line">TIPS:</span><br><span class="line">1.插件的使用实在Executor, StatementHandler, ParameterHandler, ResultSetHandler这几个对象实例化的时候, 使用jdk动态代理将配置里配置的形成代理链. 返回代理对象, 但调用方法时, 会判断是否拦截此方法并执行插件的代码.</span><br></pre></td></tr></table></figure>
+
+<h4 id="使用到的设计模式"><a href="#使用到的设计模式" class="headerlink" title="使用到的设计模式"></a>使用到的设计模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">1.代理模式</span><br><span class="line">	MapperProxy 生成 mapper 实现类 jdk代理</span><br><span class="line">	Plugin 生成代理对象实现插件 jdk代理</span><br><span class="line">	ResultSetHandler(LazyLoad) cblib, javassist</span><br><span class="line">2.装饰者模式</span><br><span class="line">	CachingExecutor: 装饰SimpleExecutor添加二级缓存功能</span><br><span class="line">	Cache,FifoCache... 使用装饰者模式为缓存添加不同特性(功能)</span><br><span class="line">3.适配器模式</span><br><span class="line">	StatementHandler</span><br><span class="line">4.责任链模式</span><br><span class="line">	Interceptor(拦截Executor、StatementHandler、ParameterHandler、ResultSetHandler对象)</span><br><span class="line">5.策略模式			</span><br><span class="line">	StatementHandler</span><br><span class="line">		PreparedStatementHandler,CallableStatementHandler,SimpleStatementHandler</span><br><span class="line">	Executor</span><br><span class="line">		SimpleExecutor,ReuseExecutor,BatchExecutor</span><br><span class="line">	TypeHandler</span><br><span class="line">		UnknownTypeHandler, IntegerTypeHandler, NStringTypeHandler</span><br><span class="line">6.建造器模式</span><br><span class="line">	org.apache.ibatis.mapping.MappedStatement.Builder</span><br><span class="line">	org.apache.ibatis.builder.xml.XMLConfigBuilder</span><br></pre></td></tr></table></figure>
+
+<h4 id="一级缓存实现"><a href="#一级缓存实现" class="headerlink" title="一级缓存实现"></a>一级缓存实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">1.put时机: </span><br><span class="line">	org.apache.ibatis.executor.BaseExecutor#queryFromDatabase 的 localCache.putObject(key, list)</span><br><span class="line">	</span><br><span class="line">2.get时机:</span><br><span class="line">	org.apache.ibatis.executor.BaseExecutor#query 的 localCache.getObject(key)</span><br><span class="line">	</span><br><span class="line">3.存在哪里</span><br><span class="line">	org.apache.ibatis.executor.BaseExecutor#localCache</span><br><span class="line">	这个类每次openSession会新建一个Executor实例</span><br></pre></td></tr></table></figure>
+
+<h4 id="二级缓存实现"><a href="#二级缓存实现" class="headerlink" title="二级缓存实现"></a>二级缓存实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">1.put时机: </span><br><span class="line">	org.apache.ibatis.executor.CachingExecutor#query的tcm.putObject</span><br><span class="line">	然后实际上是调用了cache的put, cache实际上来自Configuration解析mapper文件时创建的, 即同一个mapper共用同一个cache.</span><br><span class="line">	</span><br><span class="line">2.get时机:</span><br><span class="line">	org.apache.ibatis.executor.CachingExecutor#query的tcm.getObject, cache实际是: 同上</span><br><span class="line"></span><br><span class="line">3.remove时机:</span><br><span class="line">	org.apache.ibatis.executor.CachingExecutor#flushCacheIfRequired</span><br><span class="line"></span><br><span class="line">注意事项: 上述时机都是TransactionCacheManager的调用, 而TransactionCacheManager会根据事务的提交和回滚来处理缓存的写入与移除时机, 如真实移除时机是下一次commit触发, 真实写入也是commit时触发.</span><br><span class="line"></span><br><span class="line">	</span><br><span class="line">4.存在哪里</span><br><span class="line">	org.apache.ibatis.mapping.MappedStatement</span><br><span class="line">	也算是在 org.apache.ibatis.session.Configuration 中</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h3 id="Mybatis-Plus"><a href="#Mybatis-Plus" class="headerlink" title="Mybatis-Plus"></a><code>Mybatis-Plus</code></h3><h2 id="IO-网络"><a href="#IO-网络" class="headerlink" title="IO / 网络"></a>IO / 网络</h2><h3 id="AIO-NIO-BIO"><a href="#AIO-NIO-BIO" class="headerlink" title="AIO, NIO, BIO"></a>AIO, NIO, BIO</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">BIO: 从 jdk1.4 前, 采用 ServerSocket API 进行网络连接, 所有操作都是阻塞的(如监听, 读&#x2F;写)</span><br><span class="line">NIO: 从 jdk1.4 起, 对于所有操作都是依赖事件驱动, 只需较少的线程即可处理大量请求</span><br><span class="line">AIO: jdk1.7 起, 在 NIO 基础上实现异步, 所有事件通知由系统通知, 而非NIO 那样轮询</span><br></pre></td></tr></table></figure>
+
+<h3 id="TCP-UDP"><a href="#TCP-UDP" class="headerlink" title="TCP/UDP"></a>TCP/UDP</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">TCP: 是面向连接的协议, 收发数据前, 必须建立可靠的连接(通过三次握手)</span><br><span class="line">UDP: 是无连接的协议, 收发数据不需要建立连接(握手)</span><br><span class="line"></span><br><span class="line">区别:</span><br><span class="line">速度: TCP 满, UDP 快</span><br><span class="line">正确性&#x2F;完整性: TCP 好, UDP 无</span><br><span class="line">顺序性: TCP 好, UDP 无</span><br><span class="line"></span><br><span class="line">应用:</span><br><span class="line">TCP: 文件下载, HTTP, DNS, IM 通讯</span><br><span class="line">UDP: 网络游戏, 直播推流</span><br></pre></td></tr></table></figure>
+
+<h3 id="Netty"><a href="#Netty" class="headerlink" title="Netty"></a>Netty</h3><blockquote>
+<p>封装了复杂的NIO接口, 提供了简单的 API 实现服务端和客户端高并发通讯, 并封装了很多工具, 如心跳超时, 半包处理, websocket 等.</p>
+</blockquote>
+<h2 id="数据结构与算法"><a href="#数据结构与算法" class="headerlink" title="数据结构与算法"></a>数据结构与算法</h2><h3 id="数据结构"><a href="#数据结构" class="headerlink" title="数据结构"></a>数据结构</h3><h4 id="队列-栈"><a href="#队列-栈" class="headerlink" title="队列,  栈"></a>队列,  栈</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">队列: 先进先出 FIFO</span><br><span class="line">栈: LIFO</span><br></pre></td></tr></table></figure>
+
+<h4 id="链表"><a href="#链表" class="headerlink" title="链表"></a>链表</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">单向链表: Node&#123;next: Node&#125;</span><br><span class="line">双向链表: Node&#123;prev: Node, next: Node&#125;</span><br><span class="line">循环链表: Node&#123;first: Node, last: Node, prev: Node, next: Node&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="树"><a href="#树" class="headerlink" title="树"></a>树</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">二叉树:</span><br><span class="line">	先序遍历: 根-&gt;左-&gt;右</span><br><span class="line">	中序遍历: 左-&gt;根-&gt;右</span><br><span class="line">	后序遍历: 左-&gt;右-&gt;根</span><br><span class="line"></span><br><span class="line">红黑树:</span><br><span class="line">	红黑树是一种含有红黑结点并能自平衡的二叉查找树.</span><br><span class="line">	任意一结点到每个叶子结点的路径都包含数量相同的黑结点.</span><br><span class="line">	速度: O(log2 n) 最坏: O(log n)</span><br><span class="line">	对比 BST: 查找更快, 插入更慢.</span><br><span class="line">	对比 AVL: 查找略慢, 插入更快.</span><br><span class="line">	</span><br><span class="line">B+树:</span><br><span class="line">	所有记录节点存放在叶子节点上，且是顺序存放，由各叶子节点指针进行连接。</span><br><span class="line">	如果从最左边的叶子节点开始顺序遍历，能得到所有键值的顺序排序。</span><br><span class="line">	查找速度和树高度有关, 如 MySQL 树高度为 3, 则总是查询 3 次找到子节点, 即得到数据.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="算法"><a href="#算法" class="headerlink" title="算法"></a>算法</h3><h4 id="排序算法"><a href="#排序算法" class="headerlink" title="排序算法"></a>排序算法</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">快速排序: O(nlog(n))</span><br><span class="line">	将数组分为2半，并计算一个中间值，将左边所有大于中间值的移到右边，把右边所有小于中间值的移到左边，</span><br><span class="line">	然后分别对左边和右边递归处理（再分2半，再取中间值，再移动，再递归），直到无需递归为止。</span><br><span class="line"></span><br><span class="line">归并排序: O(nlog(n))</span><br><span class="line">	将数组不断两两拆分，直到无法拆分（只有2个元素）时开始对拆分后的元素进行排序，然后不断回溯，</span><br><span class="line">	不断排序，直到第一次拆分，即所有元素都是有序的了。排序方式为先取两个部分的第一个下标，</span><br><span class="line">	互相判断，谁小谁放到有序数组中，然后小的那个下标移位，继续判断，直到其中一个部分所有元素取完，</span><br><span class="line">	则将另一部分剩余元素批量直接拷贝到有序数组即可。</span><br><span class="line"></span><br><span class="line">冒泡排序: O(n^2) 最好 O(n)</span><br><span class="line">	进行 n - 1 轮， 每轮遍历数组两两比较交换，从而达到把最大的交换到最后面。下轮遍历数组个数减一。</span><br><span class="line"></span><br><span class="line">选择排序: O(n^2)</span><br><span class="line">	进行 n - 1 轮，每轮遍历选择数组最小值放到最前面，下轮遍历数组个数减一</span><br><span class="line"></span><br><span class="line">插入排序: O(n^2) 最好 O(n)</span><br><span class="line">	分2个数组，有序和无序，开局有序默认含有数组第一个元素，无序含有剩余的元素。</span><br><span class="line">	遍历无序所有元素，从后向前比较大小，然后进行插入到有序数组中或对数组元素移位。</span><br><span class="line"></span><br><span class="line">希尔排序: O(n^1.25)</span><br><span class="line">	对数组进行分组，对每组使用插入排序的移位进行排序，第一次分 数组长度&#x2F;2 组，</span><br><span class="line">	下一次分组为数组长度&#x2F;2再&#x2F;2组，若分 长度&#x2F;2 组，则每组2个， 若分 长度&#x2F;2&#x2F;2 组，</span><br><span class="line">	则每组 2*2 个，直到长度为1. 这是一个将数组后段数据尽可能与前段数据排序，</span><br><span class="line">	改进插入排序后端数据过小导致移位操作过多的问题。</span><br><span class="line"></span><br><span class="line">基数排序: O(n)</span><br><span class="line">	创建10个桶，每个桶大小均为数组长度，然后遍历数组，从元素的最低位（个位）开始，</span><br><span class="line">	取出并放到对应的桶（如个位是8，则放到第8个桶中），放完后，顺序遍历所有桶，</span><br><span class="line">	顺序取出每个元素，组成新数组，再将新数组按以上流程处理十位，再百位，直到数组中的最大数的最高位。</span><br><span class="line">	</span><br><span class="line">堆排序：</span><br><span class="line">	。。。</span><br></pre></td></tr></table></figure>
+
+<h4 id="优化算法"><a href="#优化算法" class="headerlink" title="优化算法"></a>优化算法</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">贪心算法</span><br><span class="line">爬山算法</span><br><span class="line">模拟退火算法</span><br><span class="line">遗传算法</span><br><span class="line">蚁群搜索算法</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="设计模式"><a href="#设计模式" class="headerlink" title="设计模式"></a>设计模式</h2><h3 id="7-大原则"><a href="#7-大原则" class="headerlink" title="7 大原则"></a>7 大原则</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">单一职责: 每个类只负责一个职责(或每个方法)</span><br><span class="line">接口隔离: 一个类对另一个类的依赖应建立在最小的接口上</span><br><span class="line">依赖倒转: 高层模块不应依赖低层模块, 二者都应该依赖接口而非细节. 细节依赖抽象, 面向接口编程</span><br><span class="line">里式替换: 子类应该做到可以替换父类, 及子类应尽量不重写父类方法.</span><br><span class="line">开闭原则: 对提供者而已可以修改, 对使用者而言不需要修改(即代码兼容性), 尽量使用扩展增加功能, 而非修改原有类</span><br><span class="line">迪米特法则: 一个对象应该对其他对象保持最小了解(最少知道原则)</span><br><span class="line">合成复用原则: 一个类使用另一个类的代码(方法), 尽量使用合成, 而不是继承</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="创建型"><a href="#创建型" class="headerlink" title="创建型"></a>创建型</h3><h4 id="单例模式"><a href="#单例模式" class="headerlink" title="单例模式"></a>单例模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">原理: 确保一个类只有一个实例，并提供该实例的全局访问点。</span><br><span class="line"></span><br><span class="line">饿汉式:</span><br><span class="line">	静态常量</span><br><span class="line">	静态代码块</span><br><span class="line">懒汉式:</span><br><span class="line">	直接判断(线程不安全)</span><br><span class="line">	方法加 synchronized(线程安全, 效率低)</span><br><span class="line">	判断后再同步(错误写法)</span><br><span class="line">	双重判断(if-同步-if) (推荐写法)</span><br><span class="line">	匿名静态内部类 (简单, 推荐)</span><br><span class="line">	枚举(简单, 但对象方法写在枚举中, 略有不适)</span><br><span class="line">	</span><br><span class="line">示例:</span><br><span class="line">	java.lang.Runtime#getRuntime()</span><br><span class="line">	java.awt.Desktop#getDesktop()</span><br></pre></td></tr></table></figure>
+
+<h4 id="原型模式"><a href="#原型模式" class="headerlink" title="原型模式"></a>原型模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">原理: 使用原型实例指定要创建对象的类型，通过复制这个原型来创建新对象.</span><br><span class="line">示例: Java 的 Object 对象的 clone 方法, java.util.Arrays.ArrayList#toArray()</span><br><span class="line"></span><br><span class="line">浅拷贝: 仅对基础类型及字符串类型的字段拷贝值</span><br><span class="line">深拷贝: 同时对引用类型(如数组,对象) 也进行拷贝</span><br><span class="line"></span><br><span class="line">深拷贝实现:</span><br><span class="line">1.重写 clone, 一一处理每个引用对象(调用对象的 clone), 麻烦, 且若对象之间关系复杂, 其中一个未实现深拷贝则导致 bug.</span><br><span class="line">2.利用序列化和反序列化, 如 Json, 或 Java 自带的序列化方式(二进制)</span><br></pre></td></tr></table></figure>
+
+<h4 id="创建者模式-生成器模式"><a href="#创建者模式-生成器模式" class="headerlink" title="创建者模式(生成器模式)"></a>创建者模式(生成器模式)</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	封装一个对象的构造过程，并允许按步骤构造.</span><br><span class="line">	若对象的生成过于复杂(字段极多且赋值还有依赖关系, 需要顺序调用), 则可将赋值过程封装成一个build(), 并放到一个 Builder 类中. 此类对外提供各个字段的赋值方法并先保存起来, 直到调用 build(), 此方法返回对象实例. </span><br><span class="line">	使用此模式, 调用者无需关注构建过程, 只需设置自己想要的值, 然后调用 build() 即可得到对象实例. 且若增加或修改字段, 构造过程变化, 调用者无感知, 无需修改代码. 符合开闭原则.</span><br><span class="line"></span><br><span class="line">示例: StringBuilder, 一些框架的 ConfigurationBuilder(如 xmpp), 用于构建配置.</span><br></pre></td></tr></table></figure>
+
+<h4 id="简单工厂模式"><a href="#简单工厂模式" class="headerlink" title="简单工厂模式"></a>简单工厂模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	在创建一个对象时不向客户暴露内部细节，并提供一个创建对象的通用接口。</span><br><span class="line">	此模式可避免多个调用者创建对象时判断创建哪个子类的重复代码, 且若多一个子类, 调用者无需修改代码.</span><br><span class="line">	</span><br><span class="line">示例: Spring ApplicationContext 的 getBean 方法.</span><br></pre></td></tr></table></figure>
+
+<h4 id="工厂方法模式"><a href="#工厂方法模式" class="headerlink" title="工厂方法模式"></a>工厂方法模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	定义了一个创建对象的接口，但由子类决定要实例化哪个类。工厂方法把实例化操作推迟到子类。</span><br><span class="line">	此模式解决了简单工厂每增加一个子类需要修改工厂类的问题.</span><br><span class="line">	此模式存在问题, 若新增一个子类, 需同时新增一个子类工厂, 系统复杂性更高.</span><br><span class="line"></span><br><span class="line">示例: Calendar, NumberFormat</span><br></pre></td></tr></table></figure>
+
+<h4 id="抽象工厂模式"><a href="#抽象工厂模式" class="headerlink" title="抽象工厂模式"></a>抽象工厂模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	提供一个接口，用于创建 相关的对象家族.</span><br><span class="line">  同上, 由子类工厂决定创建哪些对象.</span><br><span class="line">	此模式是工厂方法的升级版, 不同之处在于它同时创建多个种类的对象(工厂类具有多个方法).</span><br><span class="line">	此模式将一个对象家族的新建集合到一个工厂类创建管理, 这些对象家族相互之间一般有关联, 在创建时就可以处理这些关联. 且对于 2 个子类工厂, 一般可以无缝切换, 使得修改代码极为方便(即换一个子类工厂).</span><br><span class="line">	此模式在新增一个对象家族的成员时非常麻烦(即所有工厂类需要新增一个方法), 但再新增一类对象家族时比较简单(即新增一个子类工厂).</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="结构型"><a href="#结构型" class="headerlink" title="结构型"></a>结构型</h3><h4 id="适配器模式"><a href="#适配器模式" class="headerlink" title="适配器模式"></a>适配器模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	把一个接口转换成另一个用户需要的接口.</span><br><span class="line">	定义一个类, 实现用户需要的接口, 并聚合一个需要转换的接口对象, 在重写的方法(用户需要的方法)中调用聚合的对象的方法, 若需要返回值, 且返回值类型不一致, 则还需要在方法中处理一番, 然后返回. 这个过程叫做适配.这个类叫做适配器类.</span><br><span class="line">	使用此模式可对一些老旧接口适配兼容.</span><br><span class="line">	</span><br><span class="line">示例: java.util.Arrays#asList() 将数组适配成 List, Spring MVC的 HandlerAdapter</span><br></pre></td></tr></table></figure>
+
+<h4 id="装饰者模式"><a href="#装饰者模式" class="headerlink" title="装饰者模式"></a>装饰者模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	将一个或多个功能(方法)动态的新增到一个类中.</span><br><span class="line">	把需要新增功能类称为 A,定义一个类B,实现A的上层接口, 并聚合一个A 的实例对象, B类实现的接口中, 对其他不关心的方法直接调用聚合的对象的方法. 对于关心的方法则可以在调用前后进行加料处理(如一个方法返回一个数, 可以在原来的返回值上乘以 2), 同时, B类也可以新增一些其他方法, 这些方法就是多出的功能. B类就是装饰者类, A就是被装饰类.</span><br><span class="line">	此模式的优点是, 装饰类也可以当做被装饰类, 然后再来一层装饰, 可以无限的装饰.</span><br><span class="line">	</span><br><span class="line">示例: java IO 流</span><br></pre></td></tr></table></figure>
+
+<h4 id="代理模式"><a href="#代理模式" class="headerlink" title="代理模式"></a>代理模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	控制其他对象的访问(方法级), 将一些前置或后置的处理, 通过代理对象注入到目标对象的方法前后. 面向切面编程.</span><br><span class="line"></span><br><span class="line">类型:</span><br><span class="line">	静态代理: 定义一个代理类实现目标对象的上层接口, 并聚合一个目标对象, 重写方法时将前置后置处理加上.</span><br><span class="line">	动态代理: </span><br><span class="line">		JDK 动态代理: 需要目标对象有上层接口(自然接口内的方法才可以代理) </span><br><span class="line">			使用java.lang.reflect.Proxy#getProxyClass</span><br><span class="line">		CGLIB 动态代理: 是个类就行. 实现原理是 ASM 框架动态生成目标对象类的子类字节码, 然后通过反射生成代理对象.</span><br><span class="line"></span><br><span class="line">示例: Spring AOP</span><br></pre></td></tr></table></figure>
+
+<h4 id="桥接模式"><a href="#桥接模式" class="headerlink" title="桥接模式"></a>桥接模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	将抽象与实现分离开来，使它们可以独立变化。</span><br><span class="line">	桥接的含义是, 一个桥, 放在哪里都有桥的 2 边, 桥的 2 边可以变化, 但桥始终不变. 此处, 桥代表一个操作(如手机上运行软件), 2 边代表 一个操作的 2 个维度(如手机和软件). 同时, 桥接后的操作也可以视为一个维度, 与另一个维度桥接(如手机上运行软件和人这 2 个维度, 可以进行桥接, 组成 3 维度嵌套桥接).</span><br><span class="line">	</span><br><span class="line">示例: JDBC 获取连接, 获取连接是一个维度, 数据库是一个维度, 数据库有多个, 所以这是一个数据库维度变化, 另一维度不变的桥接模式.</span><br></pre></td></tr></table></figure>
+
+<h4 id="享元模式"><a href="#享元模式" class="headerlink" title="享元模式"></a>享元模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	利用共享的方式来支持大量细粒度的对象，这些对象一部分内部状态是相同的。</span><br><span class="line">	如常见的 线程池, 常量池等, 使得对象的获取速度加快.</span><br><span class="line">	</span><br><span class="line">示例: java.lang.Integer#valueOf() java.lang.Boolean#valueOf()</span><br></pre></td></tr></table></figure>
+
+<h4 id="组合模式"><a href="#组合模式" class="headerlink" title="组合模式"></a>组合模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	将对象组合成树形结构来表示“整体&#x2F;部分”层次关系，允许用户以相同的方式处理单独对象和组合对象。</span><br><span class="line">	一般需要部分和整体具有一定的相似度, 才能对其进行抽象.</span><br><span class="line">	对部分&#x2F;整体进行抽象, 得出一个公共抽象类或接口, 再实现类中根据具体角色做不同处理. </span><br><span class="line"></span><br><span class="line">示例:</span><br><span class="line">	javax.swing.JComponent#add(Component) </span><br><span class="line">  java.util.Map#putAll(Map)</span><br><span class="line">  java.util.List#addAll(Collection)</span><br><span class="line">  java.util.Set#addAll(Collection)</span><br></pre></td></tr></table></figure>
+
+<h4 id="外观模式"><a href="#外观模式" class="headerlink" title="外观模式"></a>外观模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	提供了一个统一的接口，用来访问子系统中的一群接口，从而让子系统更容易使用.</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="行为型"><a href="#行为型" class="headerlink" title="行为型"></a>行为型</h3><h4 id="职责链-责任链-模式"><a href="#职责链-责任链-模式" class="headerlink" title="职责链(责任链)模式"></a>职责链(责任链)模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	使多个对象都有机会处理请求，将这些对象连成一条链，并沿着这条链发送该请求，直到有一个对象处理它为止, 从而避免请求的发送者和接收者之间的耦合关系。</span><br><span class="line">	</span><br><span class="line">示例:</span><br><span class="line">	javax.servlet.Filter#doFilter()</span><br><span class="line">	netty 的 Handler Chain</span><br></pre></td></tr></table></figure>
+
+<h4 id="观察者模式"><a href="#观察者模式" class="headerlink" title="观察者模式"></a>观察者模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	定义对象之间的一对多依赖，当一个对象状态改变时，它的所有依赖都会收到通知并且自动更新状态。</span><br><span class="line">	主题（Subject）是被观察的对象，而其所有依赖者（Observer）称为观察者。</span><br><span class="line"></span><br><span class="line">示例: </span><br><span class="line">	swing 的事件监听(按钮事件, 鼠标事件)</span><br><span class="line">	JS 的 事件监听</span><br></pre></td></tr></table></figure>
+
+<h4 id="状态模式"><a href="#状态模式" class="headerlink" title="状态模式"></a>状态模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	允许对象在内部状态改变时改变它的行为，对象看起来好像修改了它所属的类。</span><br><span class="line">	状态模式主要是用来解决状态转移的问题，当状态发生转移了，那么 Context 对象就会改变它的行为.</span><br></pre></td></tr></table></figure>
+
+<h4 id="策略模式"><a href="#策略模式" class="headerlink" title="策略模式"></a>策略模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	定义一系列算法，封装每个算法，并使它们可以互换。</span><br><span class="line">	策略模式可以让算法独立于使用它的客户端。</span><br><span class="line">	策略模式主要是用来封装一组可以互相替代的算法族，并且可以根据需要动态地去替换 Context 使用的算法.</span><br><span class="line"></span><br><span class="line">示例: java.util.Comparator#compare() javax.servlet.http.HttpServlet</span><br></pre></td></tr></table></figure>
+
+<h4 id="模板方法模式"><a href="#模板方法模式" class="headerlink" title="模板方法模式"></a>模板方法模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	定义算法框架，并将一些步骤的实现延迟到子类。</span><br><span class="line">	通过模板方法，子类可以重新定义算法的某些步骤，而不用改变算法的结构。</span><br><span class="line"></span><br><span class="line">示例: java.util.Collections#sort()</span><br></pre></td></tr></table></figure>
+
+<h4 id="命令模式"><a href="#命令模式" class="headerlink" title="命令模式"></a>命令模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	将一个对象(命令接收者)的每个操作拆分到每一个命令类中, 再使用一个命令管理类来管理这些命令. 使得命令可以放入队列中有序执行, 且可以统一记录命令的操作日志, 还可以支持撤销操作(每个命令都实现对应的撤销即可).</span><br><span class="line">	此模式的好处是, 若将命令抽象为几个标准的命令(如开,关), 然后管理多个命令接收者(如灯,电视机,空调)的操作, 可使新增命令接收者变得简单, 即扩展性好.</span><br><span class="line">	</span><br><span class="line">	又称万能遥控器.</span><br></pre></td></tr></table></figure>
+
+<h4 id="中介模式"><a href="#中介模式" class="headerlink" title="中介模式"></a>中介模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	集中相关对象之间复杂的沟通和控制方式。降低子系统之间的耦合.</span><br><span class="line">	类似一个消息收发中心, 负责字系统的消息中转, 使得子系统之间可以进行一定的交互.</span><br><span class="line">	</span><br><span class="line">示例: 线程池管理者线程和要执行的任务.</span><br></pre></td></tr></table></figure>
+
+<h4 id="备忘录模式"><a href="#备忘录模式" class="headerlink" title="备忘录模式"></a>备忘录模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	在不违反封装的情况下获得对象的内部状态，从而在需要时可以将对象恢复到最初状态。</span><br><span class="line">	如对游戏的当前状态进行一个保存, 然后在后续游戏中死亡后可以读取这个状态重新开始.</span><br></pre></td></tr></table></figure>
+
+<h4 id="访问者模式"><a href="#访问者模式" class="headerlink" title="访问者模式"></a>访问者模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">原理: </span><br><span class="line">	为一个对象结构（比如组合结构）增加新能力。</span><br><span class="line">	使用访问者模式可实现重载的动态绑定(即伪双分派), 效果与重载方法内使用 instanceof 是一样的, 但使用访问者模式, 可扩展性更好.</span><br></pre></td></tr></table></figure>
+
+<h4 id="迭代器模式"><a href="#迭代器模式" class="headerlink" title="迭代器模式"></a>迭代器模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	提供一种顺序访问聚合对象元素的方法，并且不暴露聚合对象的内部表示。</span><br><span class="line"></span><br><span class="line">示例: java.util.Iterator</span><br></pre></td></tr></table></figure>
+
+<h4 id="解释器模式"><a href="#解释器模式" class="headerlink" title="解释器模式"></a>解释器模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	为语言创建解释器，通常由语言的语法和语法分析来定义。</span><br><span class="line"></span><br><span class="line">示例: EL 表达式, Freemaker模板</span><br></pre></td></tr></table></figure>
+
+<h4 id="空对象模式"><a href="#空对象模式" class="headerlink" title="空对象模式"></a>空对象模式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">原理:</span><br><span class="line">	使用什么都不做的空对象来代替 NULL, 避免空对象判断, 避免空指针异常.</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="高并发"><a href="#高并发" class="headerlink" title="高并发"></a>高并发</h2><h3 id="Redis-缓存"><a href="#Redis-缓存" class="headerlink" title="Redis 缓存"></a>Redis 缓存</h3><h4 id="缓存穿透-攻击型"><a href="#缓存穿透-攻击型" class="headerlink" title="缓存穿透(攻击型)"></a>缓存穿透(攻击型)</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">含义:</span><br><span class="line">	对于一个不存在的 key 进行访问, 会导致数据库不停地查询这个 key 进行缓存.</span><br><span class="line">	</span><br><span class="line">解决方案:</span><br><span class="line">	1.使用布隆过滤器, 一定不存在的数据会被过滤.</span><br><span class="line">	2.查询后缓存一个空结果, 但很快超时.(有缺点, 但简单)</span><br></pre></td></tr></table></figure>
+
+<h4 id="缓存雪崩"><a href="#缓存雪崩" class="headerlink" title="缓存雪崩"></a>缓存雪崩</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">含义:</span><br><span class="line">	缓存雪崩是指在我们设置缓存时采用了相同的过期时间，导致缓存在某一时刻同时失效，请求全部转发到DB，DB瞬时压力过重雪崩。</span><br><span class="line">	</span><br><span class="line">解决方案:</span><br><span class="line">	1.设置超时时, 在原有的失效时间基础上增加一个随机值，比如1-5分钟随机</span><br><span class="line">	2.加锁或者队列的方式保证缓存的单线 程（进程）, 避免大量请求打到数据库.</span><br></pre></td></tr></table></figure>
+
+<h4 id="缓存击穿"><a href="#缓存击穿" class="headerlink" title="缓存击穿"></a>缓存击穿</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">含义:</span><br><span class="line">	单一热点 key 失效时导致大量请求打到数据库。</span><br><span class="line"></span><br><span class="line">解决方案:</span><br><span class="line">	1.分布式互斥锁(redis,zookper)</span><br><span class="line">	2.添加超时字段记录超时(比实际超时小一些), 每次获取数据根据字段判断是否超时, 若是, 则马上延长超时字段, 然后加载数据库重新缓存</span><br><span class="line">	3.redis不设置过期, 通过添加超时字段判断, 超时则代码异步跑一个重新缓存的任务(这里代码需要先本地加锁, 再加分布式锁).</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="RabbitMQ"><a href="#RabbitMQ" class="headerlink" title="RabbitMQ"></a>RabbitMQ</h3><blockquote>
+<p>解耦, 异步, 削峰</p>
+</blockquote>
+<h4 id="解耦"><a href="#解耦" class="headerlink" title="解耦"></a>解耦</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">定义:</span><br><span class="line">	为面向服务的架构（SOA）提供基本的最终一致性实现. 即将 2 个系统的交互通过消息队列中转, 以防止某个系统临时挂了导致调用失败.</span><br><span class="line">示例: 下单系统调用库存系统, 若当时库存系统正好挂了, 则导致下单失败. 此时将请求放到消息队列中, 库存系统读取消息进行处理, 若当时库存挂了也没关系, 处理失败也没关系(可重试, 且重试代码比较简单).</span><br></pre></td></tr></table></figure>
+
+<h4 id="异步"><a href="#异步" class="headerlink" title="异步"></a>异步</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">定义:</span><br><span class="line">	对于某些不要求返回值的耗时操作, 可异步处理.</span><br><span class="line">示例:</span><br><span class="line">	用户下单后, 需发送多个下单提醒(微信通知, 短信通知, 邮件通知), 每个操作都比较耗时, 可考虑将其放入消息队列后直接返回, 由另一段代码负责读取消息发送通知.</span><br></pre></td></tr></table></figure>
+
+<h4 id="削峰"><a href="#削峰" class="headerlink" title="削峰"></a>削峰</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">定义:</span><br><span class="line">	将请求高峰打平, 使得系统可以处理过来.</span><br><span class="line">示例:</span><br><span class="line">	某次秒杀 1 分钟过来 1 万请求, 而系统一分钟大概只能处理 1千 请求, 系统要处理完这些请求理论需要 10 分钟, 但如果不做处理, 请求瞬间打过来, 系统直接卡死, 卡住时候一分钟可能只能处理 100 请求. 此时需要将所有请求都打到队列里面, 系统再慢慢从队列中读取处理.</span><br></pre></td></tr></table></figure>
+
+
+
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>下次一定</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.png" alt="gudqs7 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/bitcoin.png" alt="gudqs7 比特币">
+        <p>比特币</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/interview/" rel="tag"># interview</a>
+              <a href="/tags/mybatis-source/" rel="tag"># mybatis-source</a>
+              <a href="/tags/spring-mvc-source/" rel="tag"># spring-mvc-source</a>
+              <a href="/tags/jvm/" rel="tag"># jvm</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2020/05/20/new-mac/" rel="next" title="Mac-OS-Start-From-Zero">
+      Mac-OS-Start-From-Zero <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一句话"><span class="nav-number">1.</span> <span class="nav-text">一句话</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#说一下你重构代码都做了什么"><span class="nav-number">1.1.</span> <span class="nav-text">说一下你重构代码都做了什么?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#什么是-JVM"><span class="nav-number">1.2.</span> <span class="nav-text">什么是 JVM?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#你是怎么对-jvm-垃圾回收进行优化的"><span class="nav-number">1.3.</span> <span class="nav-text">你是怎么对 jvm 垃圾回收进行优化的?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#说说-MySQL-优化"><span class="nav-number">1.4.</span> <span class="nav-text">说说 MySQL 优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#你用-Redis-做了什么"><span class="nav-number">1.5.</span> <span class="nav-text">你用 Redis 做了什么?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#你使用消息队列做了什么"><span class="nav-number">1.6.</span> <span class="nav-text">你使用消息队列做了什么?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#你使用线程池做了什么"><span class="nav-number">1.7.</span> <span class="nav-text">你使用线程池做了什么?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#你在代码中使用了哪些设计模式"><span class="nav-number">1.8.</span> <span class="nav-text">你在代码中使用了哪些设计模式?</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#架构"><span class="nav-number">2.</span> <span class="nav-text">架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#重构"><span class="nav-number">2.1.</span> <span class="nav-text">重构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#集群"><span class="nav-number">2.2.</span> <span class="nav-text">集群</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#MySQL-集群"><span class="nav-number">2.2.1.</span> <span class="nav-text">MySQL 集群</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Redis-集群"><span class="nav-number">2.2.2.</span> <span class="nav-text">Redis 集群</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Tomcat-集群"><span class="nav-number">2.2.3.</span> <span class="nav-text">Tomcat 集群</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分布式"><span class="nav-number">2.3.</span> <span class="nav-text">分布式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#SpringCloud"><span class="nav-number">2.3.1.</span> <span class="nav-text">SpringCloud</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Dubbo"><span class="nav-number">2.3.2.</span> <span class="nav-text">Dubbo</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#运维"><span class="nav-number">2.4.</span> <span class="nav-text">运维</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Docker"><span class="nav-number">2.4.1.</span> <span class="nav-text">Docker</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#docker-compose"><span class="nav-number">2.4.2.</span> <span class="nav-text">docker-compose</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#K8s"><span class="nav-number">2.4.3.</span> <span class="nav-text">K8s</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#JVM"><span class="nav-number">3.</span> <span class="nav-text">JVM</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM-内存模型"><span class="nav-number">3.1.</span> <span class="nav-text">JVM 内存模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多线程"><span class="nav-number">3.2.</span> <span class="nav-text">多线程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM-对象结构"><span class="nav-number">3.3.</span> <span class="nav-text">JVM 对象结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#垃圾回收"><span class="nav-number">3.4.</span> <span class="nav-text">垃圾回收</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MySQL"><span class="nav-number">4.</span> <span class="nav-text">MySQL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#SQL-优化"><span class="nav-number">4.1.</span> <span class="nav-text">SQL 优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#索引原理"><span class="nav-number">4.1.1.</span> <span class="nav-text">索引原理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#索引"><span class="nav-number">4.1.2.</span> <span class="nav-text">索引</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#事务"><span class="nav-number">4.2.</span> <span class="nav-text">事务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据库隔离级别"><span class="nav-number">4.3.</span> <span class="nav-text">数据库隔离级别</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#MySQL-默认隔离级别"><span class="nav-number">4.3.1.</span> <span class="nav-text">MySQL 默认隔离级别</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据库锁"><span class="nav-number">4.4.</span> <span class="nav-text">数据库锁</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#锁原理"><span class="nav-number">4.4.1.</span> <span class="nav-text">锁原理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#锁触发方式"><span class="nav-number">4.4.2.</span> <span class="nav-text">锁触发方式</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#源码和框架"><span class="nav-number">5.</span> <span class="nav-text">源码和框架</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ReentrantLock"><span class="nav-number">5.1.</span> <span class="nav-text">ReentrantLock</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#加锁流程-lock"><span class="nav-number">5.1.1.</span> <span class="nav-text">加锁流程 lock()</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#解锁流程-unlock"><span class="nav-number">5.1.2.</span> <span class="nav-text">解锁流程 unlock()</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ReentrantReadWriteLock"><span class="nav-number">5.2.</span> <span class="nav-text">ReentrantReadWriteLock</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CountDownLatch"><span class="nav-number">5.3.</span> <span class="nav-text">CountDownLatch</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#countDown"><span class="nav-number">5.3.1.</span> <span class="nav-text">countDown()</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#await"><span class="nav-number">5.3.2.</span> <span class="nav-text">await()</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Semaphore"><span class="nav-number">5.4.</span> <span class="nav-text">Semaphore</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CycleBarrier"><span class="nav-number">5.5.</span> <span class="nav-text">CycleBarrier</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#HashMap"><span class="nav-number">5.6.</span> <span class="nav-text">HashMap</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#请简述-HashMap-的底层数据结构"><span class="nav-number">5.6.1.</span> <span class="nav-text">请简述 HashMap 的底层数据结构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么-HashMap-的初始容量以及扩容后的容量均为-2-的指数幂"><span class="nav-number">5.6.2.</span> <span class="nav-text">为什么 HashMap 的初始容量以及扩容后的容量均为 2 的指数幂</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么-HashMap-的加载因子是-0-75-3-4"><span class="nav-number">5.6.3.</span> <span class="nav-text">为什么 HashMap 的加载因子是 0.75 (3&#x2F;4)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么-HashMap-1-8-扩容无需-rehash"><span class="nav-number">5.6.4.</span> <span class="nav-text">为什么 HashMap 1.8 扩容无需 rehash</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么-HashMap-从链表达到-8-个时转成红黑树-达到-6-个时转回链表"><span class="nav-number">5.6.5.</span> <span class="nav-text">为什么 HashMap 从链表达到 8 个时转成红黑树, 达到 6 个时转回链表?</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Spring"><span class="nav-number">5.7.</span> <span class="nav-text">Spring</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#关键类解析"><span class="nav-number">5.7.1.</span> <span class="nav-text">关键类解析</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#容器初始化流程"><span class="nav-number">5.7.2.</span> <span class="nav-text">容器初始化流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#某些实现原理"><span class="nav-number">5.7.3.</span> <span class="nav-text">某些实现原理</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#实现-ApplicationContextAware-为何会自动注入-applicationContext"><span class="nav-number">5.7.3.1.</span> <span class="nav-text">实现 ApplicationContextAware 为何会自动注入 applicationContext?</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#实现-ApplicationListener-为何会在事件触发时自动执行我们实现的方法"><span class="nav-number">5.7.3.2.</span> <span class="nav-text">实现 ApplicationListener 为何会在事件触发时自动执行我们实现的方法?</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#实现Order接口或注解时如何自动排序的"><span class="nav-number">5.7.3.3.</span> <span class="nav-text">实现Order接口或注解时如何自动排序的?</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#单例对象如何实现循环依赖注入？"><span class="nav-number">5.7.3.4.</span> <span class="nav-text">单例对象如何实现循环依赖注入？</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#InstantiationAwareBeanPostProcessor等一些特殊BeanProcessor的扩展方法是何时自动调用的"><span class="nav-number">5.7.3.5.</span> <span class="nav-text">InstantiationAwareBeanPostProcessor等一些特殊BeanProcessor的扩展方法是何时自动调用的?</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#注解的实现"><span class="nav-number">5.7.4.</span> <span class="nav-text">注解的实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#AOP-流程"><span class="nav-number">5.7.5.</span> <span class="nav-text">AOP 流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Spring-事务实现"><span class="nav-number">5.7.6.</span> <span class="nav-text">Spring 事务实现</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Spring-Boot-源码"><span class="nav-number">5.8.</span> <span class="nav-text">Spring Boot 源码</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#简化了多少操作？"><span class="nav-number">5.8.1.</span> <span class="nav-text">简化了多少操作？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#启动流程"><span class="nav-number">5.8.2.</span> <span class="nav-text">启动流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#一些东西的实现原理"><span class="nav-number">5.8.3.</span> <span class="nav-text">一些东西的实现原理</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#ConfigurationProperties-如何实现自动注入application-properties中配置的值"><span class="nav-number">5.8.3.1.</span> <span class="nav-text">@ConfigurationProperties 如何实现自动注入application.properties中配置的值?</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#ConditionalXxx-的实现原理"><span class="nav-number">5.8.3.2.</span> <span class="nav-text">@ConditionalXxx 的实现原理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#AutoConfigureAfter-的实现原理"><span class="nav-number">5.8.3.3.</span> <span class="nav-text">@AutoConfigureAfter  的实现原理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#各种-AutoConfiguration-实现大致流程"><span class="nav-number">5.8.3.4.</span> <span class="nav-text">各种 AutoConfiguration 实现大致流程.</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Spring-Boot-是如何自动扫描main方法所在类所在包的"><span class="nav-number">5.8.3.5.</span> <span class="nav-text">Spring Boot 是如何自动扫描main方法所在类所在包的?</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#application-properties-是如何被加载到Environment中的"><span class="nav-number">5.8.3.6.</span> <span class="nav-text">application.properties 是如何被加载到Environment中的?</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#SpringApplication-run-如何加载-tomcat-的"><span class="nav-number">5.8.3.7.</span> <span class="nav-text">SpringApplication.run() 如何加载 tomcat 的?</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Spring-Boot-监听"><span class="nav-number">5.8.4.</span> <span class="nav-text">Spring Boot 监听</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Spring-MVC-源码"><span class="nav-number">5.9.</span> <span class="nav-text">Spring MVC 源码</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#关键类解析-1"><span class="nav-number">5.9.1.</span> <span class="nav-text">关键类解析</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#执行流程"><span class="nav-number">5.9.2.</span> <span class="nav-text">执行流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#拦截器原理"><span class="nav-number">5.9.3.</span> <span class="nav-text">拦截器原理</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Mybatis-源码"><span class="nav-number">5.10.</span> <span class="nav-text">Mybatis 源码</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#关键类解析-2"><span class="nav-number">5.10.1.</span> <span class="nav-text">关键类解析</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#生命周期与执行流程"><span class="nav-number">5.10.2.</span> <span class="nav-text">生命周期与执行流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#使用到的设计模式"><span class="nav-number">5.10.3.</span> <span class="nav-text">使用到的设计模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#一级缓存实现"><span class="nav-number">5.10.4.</span> <span class="nav-text">一级缓存实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#二级缓存实现"><span class="nav-number">5.10.5.</span> <span class="nav-text">二级缓存实现</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Mybatis-Plus"><span class="nav-number">5.11.</span> <span class="nav-text">Mybatis-Plus</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IO-网络"><span class="nav-number">6.</span> <span class="nav-text">IO &#x2F; 网络</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#AIO-NIO-BIO"><span class="nav-number">6.1.</span> <span class="nav-text">AIO, NIO, BIO</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TCP-UDP"><span class="nav-number">6.2.</span> <span class="nav-text">TCP&#x2F;UDP</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Netty"><span class="nav-number">6.3.</span> <span class="nav-text">Netty</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据结构与算法"><span class="nav-number">7.</span> <span class="nav-text">数据结构与算法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#数据结构"><span class="nav-number">7.1.</span> <span class="nav-text">数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#队列-栈"><span class="nav-number">7.1.1.</span> <span class="nav-text">队列,  栈</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#链表"><span class="nav-number">7.1.2.</span> <span class="nav-text">链表</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#树"><span class="nav-number">7.1.3.</span> <span class="nav-text">树</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#算法"><span class="nav-number">7.2.</span> <span class="nav-text">算法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#排序算法"><span class="nav-number">7.2.1.</span> <span class="nav-text">排序算法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#优化算法"><span class="nav-number">7.2.2.</span> <span class="nav-text">优化算法</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#设计模式"><span class="nav-number">8.</span> <span class="nav-text">设计模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-大原则"><span class="nav-number">8.1.</span> <span class="nav-text">7 大原则</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#创建型"><span class="nav-number">8.2.</span> <span class="nav-text">创建型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#单例模式"><span class="nav-number">8.2.1.</span> <span class="nav-text">单例模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#原型模式"><span class="nav-number">8.2.2.</span> <span class="nav-text">原型模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#创建者模式-生成器模式"><span class="nav-number">8.2.3.</span> <span class="nav-text">创建者模式(生成器模式)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#简单工厂模式"><span class="nav-number">8.2.4.</span> <span class="nav-text">简单工厂模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#工厂方法模式"><span class="nav-number">8.2.5.</span> <span class="nav-text">工厂方法模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#抽象工厂模式"><span class="nav-number">8.2.6.</span> <span class="nav-text">抽象工厂模式</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#结构型"><span class="nav-number">8.3.</span> <span class="nav-text">结构型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#适配器模式"><span class="nav-number">8.3.1.</span> <span class="nav-text">适配器模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#装饰者模式"><span class="nav-number">8.3.2.</span> <span class="nav-text">装饰者模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#代理模式"><span class="nav-number">8.3.3.</span> <span class="nav-text">代理模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#桥接模式"><span class="nav-number">8.3.4.</span> <span class="nav-text">桥接模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#享元模式"><span class="nav-number">8.3.5.</span> <span class="nav-text">享元模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#组合模式"><span class="nav-number">8.3.6.</span> <span class="nav-text">组合模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#外观模式"><span class="nav-number">8.3.7.</span> <span class="nav-text">外观模式</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#行为型"><span class="nav-number">8.4.</span> <span class="nav-text">行为型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#职责链-责任链-模式"><span class="nav-number">8.4.1.</span> <span class="nav-text">职责链(责任链)模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#观察者模式"><span class="nav-number">8.4.2.</span> <span class="nav-text">观察者模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#状态模式"><span class="nav-number">8.4.3.</span> <span class="nav-text">状态模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#策略模式"><span class="nav-number">8.4.4.</span> <span class="nav-text">策略模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#模板方法模式"><span class="nav-number">8.4.5.</span> <span class="nav-text">模板方法模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#命令模式"><span class="nav-number">8.4.6.</span> <span class="nav-text">命令模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#中介模式"><span class="nav-number">8.4.7.</span> <span class="nav-text">中介模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#备忘录模式"><span class="nav-number">8.4.8.</span> <span class="nav-text">备忘录模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#访问者模式"><span class="nav-number">8.4.9.</span> <span class="nav-text">访问者模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#迭代器模式"><span class="nav-number">8.4.10.</span> <span class="nav-text">迭代器模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#解释器模式"><span class="nav-number">8.4.11.</span> <span class="nav-text">解释器模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#空对象模式"><span class="nav-number">8.4.12.</span> <span class="nav-text">空对象模式</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#高并发"><span class="nav-number">9.</span> <span class="nav-text">高并发</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Redis-缓存"><span class="nav-number">9.1.</span> <span class="nav-text">Redis 缓存</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#缓存穿透-攻击型"><span class="nav-number">9.1.1.</span> <span class="nav-text">缓存穿透(攻击型)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#缓存雪崩"><span class="nav-number">9.1.2.</span> <span class="nav-text">缓存雪崩</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#缓存击穿"><span class="nav-number">9.1.3.</span> <span class="nav-text">缓存击穿</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RabbitMQ"><span class="nav-number">9.2.</span> <span class="nav-text">RabbitMQ</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#解耦"><span class="nav-number">9.2.1.</span> <span class="nav-text">解耦</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#异步"><span class="nav-number">9.2.2.</span> <span class="nav-text">异步</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#削峰"><span class="nav-number">9.2.3.</span> <span class="nav-text">削峰</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="gudqs7"
+      src="/images/avatar.gif">
+  <p class="site-author-name" itemprop="name">gudqs7</p>
+  <div class="site-description" itemprop="description">心累没钱躺尸中</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">14</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">14</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/gudqs7" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;gudqs7" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:gudqs7@gmail.com" title="E-Mail → mailto:gudqs7@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">gudqs7</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://gudqs7s-note.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  var disqus_config = function() {
+    this.page.url = "https://gudqs7.github.io/2020/05/20/interview/";
+    this.page.identifier = "2020/05/20/interview/";
+    this.page.title = "Java-Interview";
+    };
+  NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: disqus_config
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://gudqs7s-note.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  });
+</script>
+
+</body>
+</html>
