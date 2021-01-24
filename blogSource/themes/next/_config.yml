@@ -177,8 +177,8 @@ site_state: true
 # Key is the link label showing to end users.
 # Value before `||` delimiter is the target permalink, value after `||` delimiter is the name of Font Awesome icon.
 social:
-  GitHub: https://github.com/gudqs7 || fab fa-github
-  E-Mail: mailto:gudqs7@gmail.com || fa fa-envelope
+  GitHub: https://github.com/sunbuwen || fab fa-github
+  E-Mail: mailto:buwensun@163.com || fa fa-envelope
   #Weibo: https://weibo.com/yourname || fab fa-weibo
   #Google: https://plus.google.com/yourname || fab fa-google
   #Twitter: https://twitter.com/yourname || fab fa-twitter
@@ -582,7 +582,7 @@ comments:
 # Disqus
 disqus:
   enable: true
-  shortname: gudqs7s-note
+  shortname: sunbuwen
   count: true
   #post_meta_order: 0
 
